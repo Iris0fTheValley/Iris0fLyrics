@@ -134,7 +134,7 @@ AI 辅助设计与参数化
 本地开发运行（推荐）
 bash
 # 1. 克隆仓库
-git clone https://github.com/your-username/Iris0fLyrics.git
+git clone https://github.com/Iris0fTheValley/Iris0fLyrics.git
 cd Iris0fLyrics
 
 # 2. 安装依赖（仅支持 PNPM）
