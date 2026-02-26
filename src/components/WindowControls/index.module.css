@@ -1,0 +1,25 @@
+.windowControls {
+	display: flex;
+	align-items: stretch;
+	width: 100%;
+	font-size: 12px;
+	user-select: none;
+}
+
+.spacer {
+	flex-grow: 1;
+	align-self: stretch;
+}
+
+.slot {
+	flex-grow: 0;
+	flex-shrink: 1;
+	margin: auto 0;
+}
+
+.leftSide,
+.rightSide {
+	display: flex;
+	width: 0;
+	flex: 1;
+}

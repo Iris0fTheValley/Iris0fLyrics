@@ -1,0 +1,660 @@
+{
+	"app": {
+		"error": {
+			"title": "Oops, an error occurred!",
+			"description": "An error occurred while running AMLL TTML Tools",
+			"checkDevTools": "Details can be found in Developer Tools",
+			"saveLyrics": "Try saving current lyrics",
+			"tryRestart": "Try reloading the app",
+			"details": "Approximate error info:"
+		},
+		"update": {
+			"updateAvailable": "Update available: {version}",
+			"installError": "Error when installing update"
+		},
+		"empty": {
+			"title": "No lyric lines",
+			"description": "Add new lyric lines in the top panel or open/import existing lyrics from the menu"
+		}
+	},
+	"confirmDialog": {
+		"cancel": "Cancel",
+		"confirm": "Confirm",
+		"newFile": {
+			"title": "Confirm New File",
+			"description": "You have unsaved changes. If you proceed, these changes will be lost. Are you sure you want to create a new file?"
+		},
+		"syncLineTimestamps": {
+			"title": "Confirm Sync Line Timestamps",
+			"description": "This action will automatically synchronize the start and end times of all lines based on the timestamps of each word in the line, matching the start and end times of the first and last syllables. Are you sure you want to proceed?"
+		},
+		"openFile": {
+			"title": "Confirm Open File",
+			"description": "You have unsaved changes. If you proceed, these changes will be lost. Are you sure you want to open a new file?"
+		},
+		"importFile": {
+			"title": "Confirm Import Lyrics",
+			"description": "You have unsaved changes. If you proceed, these changes will be lost. Are you sure you want to import new lyrics?"
+		},
+		"useMetadataName": {
+			"title": "Use metadata name?",
+			"description": "Use \"{name}\" as the file name?"
+		}
+	},
+	"ribbonBar": {
+		"editMode": {
+			"multipleValues": "Multiple values…",
+			"showTranslation": "Show Translation Line",
+			"showRomanization": "Show Romanization Line",
+			"showWordRomanizationInput": "Show Per-Word Romanization",
+			"new": "New",
+			"lyricLine": "Lyric Line",
+			"lineTiming": "Line Timing",
+			"startTime": "Start Time",
+			"endTime": "End Time",
+			"lineProperties": "Line Properties",
+			"bgLyric": "Background Vocal",
+			"duetLyric": "Duet Vocal",
+			"ignoreSync": "Ignore Sync",
+			"wordTiming": "Word Timing",
+			"emptyBeatCount": "Empty Beat Count",
+			"wordProperties": "Word Properties",
+			"wordContent": "Word Content",
+			"romanWord": "Word Romanization",
+			"obscene": "Obscene",
+			"secondaryContent": "Secondary Content",
+			"translatedLyric": "Translation",
+			"romanLyric": "Romanization",
+			"layoutMode": "Layout",
+			"auxiliaryLineDisplay": "Auxiliary Line Display"
+		},
+		"previewMode": {
+			"lyrics": "Lyrics",
+			"showTranslation": "Show Translation",
+			"showRoman": "Show Romanization",
+			"maskObsceneWords": "Mask Obscene Words",
+			"word": "Word",
+			"fadeWidth": "Fade Width"
+		},
+		"syncMode": {
+			"currentEmptyBeat": "Empty Beat",
+			"syncAdjustment": "Timing Adjustment",
+			"timeOffset": "Time Offset",
+			"assistSettings": "Assistant Settings",
+			"showTimestampUpdate": "Show Timestamp Updates",
+			"touchSyncPanel": "Touch Sync Panel",
+			"displayOptions": "Display Options",
+			"showTimestamps": "Show Timestamps",
+			"highlightActiveWord": "Highlight Active Word",
+			"highlightErrors": "Highlight Errors",
+			"showPerWordRomanization": "Show Per-Word Romanization",
+			"keyBindingReference": "Hotkey Cheatsheet",
+			"startSync": "Mark Begin",
+			"continuousSync": "Commit",
+			"endSync": "Mark End"
+		},
+		"loading": "Panel loading…"
+	},
+	"settings": {
+		"common": {
+			"layoutModeOptions": {
+				"simple": "Simple Mode",
+				"advance": "Advanced Mode"
+			},
+			"customBackground": "Custom Background",
+			"customBackgroundDesc": "Choose an image to use as the background.",
+			"customBackgroundPick": "Choose Image",
+			"customBackgroundClear": "Clear",
+			"customBackgroundManage": "Settings",
+			"customBackgroundEnabled": "Background set",
+			"customBackgroundOpacity": "Opacity",
+			"customBackgroundOpacityWarning": "If this value is too high, the page content may be hard to read.",
+			"customBackgroundMask": "Mask",
+			"customBackgroundBlur": "Blur Radius",
+			"customBackgroundBrightness": "Brightness",
+			"language": "Interface Language",
+			"languageDesc": "Select the language for the interface",
+			"layoutMode": "Editor Layout Mode",
+			"layoutModeDesc": {
+				"line1": "Simple layout satisfies most basic needs",
+				"line2": "Switch to Advanced Mode if you need more efficient syncing"
+			},
+			"syncJudgeMode": "Sync Timestamp Judgment Mode",
+			"syncJudgeModeDesc": "Set how timestamps are judged when syncing. Default is 'First key down'.",
+			"syncJudgeModeOptions": {
+				"firstKeyDown": "First key down time",
+				"lastKeyUp": "Last key up time",
+				"middleKey": "Middle of key down & up",
+				"firstKeyDownLegacy": "First key down time (legacy)"
+			},
+			"keyBindingTrigger": "Key Binding Trigger",
+			"keyBindingTriggerDesc": "Determines whether shortcuts are triggered when a key is pressed or released.",
+			"keyBindingTriggerOptions": {
+				"keyDown": "Trigger on Key Down",
+				"keyUp": "Trigger on Key Up"
+			},
+			"smartFirstWord": "Smart First Word",
+			"smartFirstWordDesc": "When syncing the first word of a line, the first key press sets its start time only, without immediately setting its end time.",
+			"smartLastWord": "Smart Last Word",
+			"smartLastWordDesc": "When syncing the last word of a line, the key press sets its end time without automatically setting the start time of the next line's first word.",
+			"volume": "Music Volume",
+			"playbackRate": "Playback Speed",
+			"autosave": {
+				"enable": "Enable Autosave",
+				"interval": "Save Interval (minutes)",
+				"limit": "Snapshots to keep"
+			}
+		},
+		"about": {
+			"update": "Update",
+			"newVersion": "New version",
+			"updateNow": "Update now",
+			"downloading": "Downloading update...",
+			"ready": "Update is ready. Restart the application for it to take effect.",
+			"restart": "Restart"
+		},
+		"group": {
+			"display": "Display",
+			"timing": "Timing",
+			"playback": "Playback",
+			"autosave": "Autosave"
+		},
+		"spectrogram": {
+			"palette": "Color Palette",
+			"paletteCustom": "Custom",
+			"gradientEditorDesc": "A Pos value of 0.0 corresponds to the quietest part, and 1.0 corresponds to the loudest part. It is recommended to use brighter colors for larger Pos values.",
+			"addStop": "Add Color Stop"
+		}
+	},
+	"topBar": {
+		"modeBtns": {
+			"edit": "Edit",
+			"sync": "Time",
+			"preview": "Preview"
+		},
+		"appName": "Apple Music-like Lyrics TTML Tool",
+		"menu": {
+			"file": "File",
+			"newLyric": "New lyrics",
+			"openLyric": "Open lyrics",
+			"openFromClipboard": "Open TTML from clipboard",
+			"saveLyric": "Save lyrics",
+			"restoreFromHistory": "Restore from history…",
+			"saveLyricToClipboard": "Save TTML to clipboard",
+			"uploadToAMLLDB": "Upload to database (CN only)",
+			"edit": "Edit",
+			"undo": "Undo",
+			"redo": "Redo",
+			"selectAllLines": "Select all lines",
+			"unselectAllLines": "Deselect all lines",
+			"invertSelectAllLines": "Invert line selections",
+			"selectWordsOfMatchedSelection": "Select words matching selection",
+			"timeShift": "Time Shift...",
+			"editMetadata": "Edit lyrics metadata…",
+			"tool": "Tools",
+			"segmentationTools": "Segmentation Tools",
+			"autoSegment": "Auto Segment",
+			"advancedSegment": "Advanced Segment...",
+			"syncLineTimestamps": "Sync Line Timestamps",
+			"perWordRomanization": {
+				"index": "Per-Word Romanization",
+				"check": "Check Per-Word Romanization",
+				"distribute": "Distribute Romanization..."
+			},
+			"help": "Help",
+			"helpDoc": "Documentation (CN)",
+			"importLyric": {
+				"import": "Import lyrics",
+				"fromPlainText": "Import from plain text…",
+				"fromLRCLIB": "Import from LRCLIB...",
+				"fromLyRiC": "Import from LyRiC file…",
+				"fromESLyRiC": "Import from ESLyRiC file…",
+				"fromQRC": "Import from QRC file…",
+				"fromYRC": "Import from YRC file…",
+				"fromLrcfySylb": "Import from Lyricify Syllable file…"
+			},
+			"exportLyric": {
+				"export": "Export lyrics",
+				"toLyRiC": "Export to LyRiC",
+				"toESLyRiC": "Export to ESLyRiC",
+				"toQRC": "Export to QRC",
+				"toYRC": "Export to YRC",
+				"toLrcfySylb": "Export to Lyricify Syllable",
+				"toASS": "Export to ASS subtitles"
+			}
+		}
+	},
+	"header": {
+		"status": {
+			"saving": "Saving...",
+			"pending": "Saving...",
+			"savedAt": "Last saved at",
+			"saved": "Saved"
+		},
+		"popover": {
+			"filename": "File Name",
+			"versionHistory": "Version History..."
+		}
+	},
+	"contextMenu": {
+		"deleteWords": "Delete {count, plural, one {word} other {words}}",
+		"bgLyric": "Background line",
+		"duetLyric": "Duet line",
+		"insertLineBefore": "Insert new line before",
+		"insertLineAfter": "Insert new line after",
+		"copyLine": "Duplicate {count, plural, one {line} other {lines}}",
+		"combineLine": "Combine lines",
+		"deleteLine": "Delete {count, plural, one {line} other {lines}}",
+		"splitWord": "Split word…",
+		"replaceWord": "Replace word…",
+		"combineWords": "Combine words",
+		"moveFollowingWordToNewLine": "Move followings to new line",
+		"moveWordToNewLine": "Move {count, plural, one {word} other {words}} to new line"
+	},
+	"settingsDialog": {
+		"title": "Preferences",
+		"common": {
+			"latencyTest": "Audio/input latency test"
+		},
+		"keybindings": {
+			"newFile": "New File",
+			"openFile": "Open File",
+			"saveFile": "Save File",
+			"openAudio": "Open Audio File",
+			"undo": "Undo",
+			"redo": "Redo",
+			"selectAll": "Select All",
+			"unselectAll": "",
+			"selectInverted": "Invert Selection",
+			"selectWordsOfMatchedSelection": "Select similar words",
+			"deleteSelection": "Delete Selection",
+			"switchEditMode": "Mode Switch - Switch to Edit Mode",
+			"switchSyncMode": "Mode Switch - Switch to Timing Mode",
+			"switchPreviewMode": "Mode Switch - Switch to Preview Mode",
+			"moveNextWord": "Timing - Move to next word",
+			"movePrevWord": "Timing - Move to previous word",
+			"moveNextLine": "Timing - Move to next line start",
+			"movePrevLine": "Timing - Move to previous line start",
+			"movePrevWordAndPlay": "Timing - Move to previous word and play",
+			"moveNextWordAndPlay": "Timing - Move to next word and play",
+			"syncStart": "Timing - Mark begin",
+			"syncNext": "Timing - Commit",
+			"syncEnd": "Timing - Mark end",
+			"moveFirstWordAndPlay": "Timing - Move to first word and play",
+			"moveLastWordAndPlay": "Timing - Move to last word and play",
+			"playPause": "Playback - Play/Pause",
+			"seekForward": "Playback - Seek forward 5s",
+			"seekBackward": "Playback - Seek backward 5s",
+			"volumeUp": "Playback - Volume up",
+			"volumeDown": "Playback - Volume down",
+			"playbackRateUp": "Playback - Increase speed",
+			"playbackRateDown": "Playback - Decrease speed",
+			"playbackRateReset": "Playback - Reset speed",
+			"auditionSelectionBefore": "Spectrogram - Audition selection (500ms before)",
+			"auditionSelection": "Spectrogram - Audition selection",
+			"auditionSelectionAfter": "Spectrogram - Audition selection (500ms after)",
+			"category": {
+				"File": "File",
+				"Edit": "Edit",
+				"View": "View",
+				"Sync": "Sync",
+				"Audio": "Audio",
+				"Spectrogram": "Spectrogram"
+			}
+		},
+		"tab": {
+			"common": "General",
+			"keybindings": "Keybindings",
+			"spectrogram": "Spectrogram"
+		}
+	},
+	"error": {
+		"unsupportedFileFormat": "Unsupported file format: {ext}",
+		"openFileFailed": "Failed to open file"
+	},
+	"audioPanel": {
+		"volume": "Volume",
+		"playbackRate": "Playback rate",
+		"clickToLoadMusic": "Click the icon button to load music",
+		"playPause": "Play / pause music",
+		"expandSpectrogram": "Expand / collapse spectrogram"
+	},
+	"audio": {
+		"status": {
+			"transcoding": "Decoding failed, attempting to transcode audio...",
+			"loading": "Loading audio...",
+			"processing": "Processing..."
+		},
+		"error": {
+			"workerError": "Error processing audio"
+		}
+	},
+	"lrclib": {
+		"searchError": "Search failed, please check network or try again later",
+		"importError": "Error occurred while importing lyrics",
+		"title": "Import Lyric from LRCLIB",
+		"placeholder": "Title Artist...",
+		"synced": "Synced",
+		"unsynced": "Unsynced",
+		"notFound": "No results found, please try different keywords",
+		"noResult": "Enter keywords to start searching",
+		"noLyrics": "No lyrics content available for this track",
+		"extractBg": "Extract parentheses as background vocals",
+		"autoSegment": "Auto Segment",
+		"import": "Import Lyric"
+	},
+	"common": {
+		"search": "Search",
+		"close": "Close",
+		"cancel": "Cancel",
+		"confirm": "Confirm",
+		"apply": "Apply",
+		"applyScope": "Scope",
+		"scope": {
+			"all": "All lyric lines",
+			"selected": "Selected lyric lines",
+			"selectedFollowing": "Selected and followings",
+			"custom": "Custom Range"
+		},
+		"fromLine": "From line",
+		"toLine": "to line",
+		"line": "",
+		"success": "Restore successful",
+		"error": "Data corrupted or lost",
+		"deleteSuccess": "Delete Success",
+		"time": "Time",
+		"restore": "Restore",
+		"about": "About",
+		"remove": "Remove",
+		"clickToSet": "Click to set "
+	},
+	"lyricLineView": {
+		"translatedLabel": "Translation:",
+		"romanLabel": "Romanization:",
+		"empty": "None",
+		"insertLine": "Insert new line here",
+		"insertWord": "Insert word here…"
+	},
+	"lyricWordView": {
+		"empty": "Empty",
+		"spaceCount": "Space x{count}"
+	},
+	"touchSyncPanel": {
+		"prevWord": "Jump Previous Word",
+		"nextWord": "Jump Next Word"
+	},
+	"replaceWordDialog": {
+		"title": "Replace Word",
+		"description": "New word:",
+		"placeholder": "New word",
+		"applyToAll": "Apply this replacing to all identical words",
+		"ignoreCase": "Ignore case"
+	},
+	"timeShiftDialog": {
+		"title": "Time Shift",
+		"amount": "Offset (ms)",
+		"direction": "Direction",
+		"advance": "Advance (-)",
+		"delay": "Delay (+)",
+		"scopeLabel": "Scope",
+		"scope": {
+			"all": "All lyric lines",
+			"selected": "Selected lyric lines",
+			"selectedFollowing": "Selected and followings",
+			"custom": "Custom Range"
+		},
+		"fromLine": "From line",
+		"toLine": "to line",
+		"line": ""
+	},
+	"distributeRomanDialog": {
+		"title": "Distribute Line Romanization to Words",
+		"warning": "This action reads the line-level transliteration and distributes it to individual words. The algorithm is optimized for Japanese Romaji and may not work as expected for other languages."
+	},
+	"globalDragOverlay": {
+		"title": "Release to load"
+	},
+	"historyRestoreDialog": {
+		"loadError": "Failed to load history",
+		"confirm": {
+			"title": "Confirm Restore",
+			"description": "This will overwrite all content in the current editor. Are you sure you want to restore this snapshot?"
+		},
+		"deleteProject": {
+			"title": "Delete project history",
+			"description": "Are you sure you want to delete all autosaved records for this project? This action cannot be undone."
+		},
+		"projects": "Recent Projects",
+		"noProjects": "No records were automatically saved.",
+		"latestState": "Latest version",
+		"restoreLatest": "Restore this version",
+		"historyVersions": "Other versions",
+		"noHistory": "No history available",
+		"selectProject": "Please select an item from the left panel"
+	},
+	"autosave": {
+		"legacyProjectName": "Legacy snapshots",
+		"untitledProjectName": "Untitled Project"
+	},
+	"time": {
+		"daysAgo": "{count} days ago",
+		"hoursAgo": "{count} hours ago",
+		"minutesAgo": "{count} minutes ago",
+		"justNow": "Just now"
+	},
+	"metadata": {
+		"title": "Metadata"
+	},
+	"textImportDialog": {
+		"title": "Import Lyrics from Plain Text",
+		"actionButton": "Import",
+		"contentMode": {
+			"caption": "Text content",
+			"lyric": "Lyrics Only",
+			"withTranslation": "Lyrics with translation",
+			"withRoman": "Lyrics with romanization",
+			"withBoth": "Lyrics with both"
+		},
+		"separationMode": {
+			"caption": "Translation/Romanization Format",
+			"multipleLine": "Interleaved Multiple Lines",
+			"sameLine": "Same Line Separation"
+		},
+		"separator": "Line Separator",
+		"swapTransAndRoman": "Swap translation and romanization lines",
+		"wordSeparator": "Word Separator",
+		"enableSpecialPrefix": "Enable Special Prefix",
+		"bgLyricPrefix": "Background Lyric Prefix",
+		"duetLyricPrefix": "Duet Lyric Prefix",
+		"enableEmptyBeat": "Enable Empty Beat",
+		"emptyBeatSymbol": "Empty Beat Symbol"
+	},
+	"metadataDialog": {
+		"openLink": "Open link",
+		"duplicateMsg": "Found duplicate metadata values",
+		"addValue": "Add",
+		"builtinOptions": {
+			"musicName": "Track Name",
+			"artists": "Track Artists",
+			"artistsInvalidMsg": "If there are multiple artists, please add this key multiple times instead of using delimiters; if an artist name contains delimiters, please ignore this message",
+			"songwriter": "Songwriter",
+			"songwriterInvalidMsg": "If there are multiple songwriters, please add this key multiple times instead of using delimiters",
+			"album": "Album Name",
+			"ncmMusicId": "NetEase Music ID",
+			"ncmMusicIdInvalidMsg": "NetEase Music ID should be numeric",
+			"qqMusicId": "QQ Music ID",
+			"qqMusicIdInvalidMsg": "QQ Music ID should be alphanumeric",
+			"spotifyId": "Spotify Track ID",
+			"spotifyIdInvalidMsg": "Spotify Track ID should be alphanumeric",
+			"appleMusicId": "Apple Music Track ID",
+			"appleMusicIdInvalidMsg": "Apple Music Track ID should be numeric",
+			"isrc": "Track ISRC Code",
+			"isrcInvalidMsg": "ISRC code format should be CC-XXX-YY-NNNNN",
+			"ttmlAuthorGithub": "Lyrics Author GitHub ID",
+			"ttmlAuthorGithubInvalidMsg": "GitHub ID should be numeric",
+			"ttmlAuthorGithubLogin": "Lyrics Author GitHub Username",
+			"ttmlAuthorGithubLoginInvalidMsg": "GitHub username should be alphanumeric or hyphens, up to 39 characters"
+		},
+		"title": "Metadata Editor",
+		"key": "Key",
+		"value": "Value",
+		"empty": "No metadata",
+		"addKeyValue": "Add new key-value",
+		"customKey": "Custom Key",
+		"addPresets": "Add all preset keys",
+		"clear": "Clear",
+		"info": "Learn more"
+	},
+	"submitToAMLLDB": {
+		"validation": {
+			"missingMusicName": "Metadata missing track name",
+			"missingArtists": "Metadata missing track artists",
+			"missingAlbum": "Metadata missing album name",
+			"missingMusicId": "Metadata missing platform track ID"
+		},
+		"defaultReason": "New lyrics submission",
+		"errors": {
+			"validation": "Submission validation failed:\n{errors}",
+			"noLyrics": "There's no lyrics content yet?",
+			"uploadFailed": "Failed to request upload lyrics file: {status} {statusText}",
+			"submitFailed": "Submission failed, check console for reason!"
+		},
+		"labels": {
+			"submit": "Lyrics Submit/Correction"
+		},
+		"issueTitle": "[Lyrics Submit/Fix] {name}",
+		"unknownTitle": "Unknown Title",
+		"unknownArtist": "Unknown Artist",
+		"description": "Submit lyrics to AMLL Lyrics Database",
+		"title": "Submit lyrics to AMLL Lyrics Database (Simplified Chinese users only)",
+		"chineseOnlyWarning": "This feature is only available to Simplified Chinese users of AMLL Lyrics Database. If you are editing lyrics to use them in other software, please follow that software's way to submit lyrics!",
+		"thankYou": "First of all, thank you for your generous lyrics contribution!",
+		"cc0Agreement": "By submitting you agree to",
+		"cc0Rights": "use the CC0 license and fully waive ownership of the lyrics",
+		"andSubmit": "and submit to the lyrics database!",
+		"futureUse": "And the lyrics will be used as default TTML source by AMLL systems in the future!",
+		"rightsWarning": "If you value retaining ownership, please do NOT submit!",
+		"submitInstructions": "Enter the following info then jump to the GitHub issue submission page!",
+		"closeWarning": "Close warning message"
+	},
+	"splitWordDialog": {
+		"spaceCount": "Space x{count}",
+		"empty": "Empty",
+		"title": "Split Word",
+		"tip": "After splitting, new words will evenly divide the original word's start/end time. Empty beats will be cleared.",
+		"applyToAll": "Apply this splitting to all identical words",
+		"ignoreCase": "Ignore case",
+		"actionButton": "Confirm"
+	},
+	"advancedSegmentDialog": {
+		"test": {
+			"outputError": "Splitting preview error",
+			"title": "Splitting Test",
+			"input": "Enter a lyric line or word to test...",
+			"output": "Preview result:"
+		},
+		"title": "Advanced Segmentation",
+		"scope": {
+			"title": "Application Scope",
+			"all": "All lyric lines",
+			"range": {
+				"from": "From line",
+				"to": "to line",
+				"end": ""
+			}
+		},
+		"rules": {
+			"title": "Auto Segmentation Rules",
+			"cjk": "Split CJK characters",
+			"syllable": "Split Western words by syllables"
+		},
+		"language": {
+			"select": "Select a hyphenation language model:"
+		},
+		"tip": "After splitting, the original word's total duration will be redistributed based on the number of characters and their weights.",
+		"postProcess": {
+			"title": "Post-processing",
+			"punct": {
+				"caption": "Punctuation handling:",
+				"merge": "Merge to adjacent syllable",
+				"standalone": "Set as standalone segment",
+				"weight": "Punctuation time weight:"
+			},
+			"empty": "Remove empty segments"
+		},
+		"custom": {
+			"title": "Custom Segmentation Rules",
+			"input": "Enter word for manual splitting...",
+			"add": "Add to custom rules",
+			"list": "Custom rules list:"
+		},
+		"ignore": {
+			"title": "Ignore List",
+			"placeholder": "One word per line, words in this list will not be auto-segmented"
+		}
+	},
+	"aboutModal": {
+		"appName": "Apple Music-like Lyrics TTML Tool",
+		"description": "A Word-by-Word TTML Editing and Timeline Tool for Apple Music-like Lyrics",
+		"buildDate": "Build Date: {date}",
+		"gitCommit": "Git Commit: {commit}"
+	},
+	"spectrogram": {
+		"invalidEndTime": "Cannot select this end time",
+		"noAudioLoaded": "Please load an audio file to render the spectrogram",
+		"loadAudio": "Load an audio file",
+		"showUnselectedLines": "Show unselected lines"
+	},
+	"pwa": {
+		"offlineReady": "Site successfully cached for offline use",
+		"updateRefresh": "Site updated, refresh to use the latest version!",
+		"refresh": "Refresh"
+	},
+	"colorToolbar": {
+		"title": "✍️ Quick Color",
+		"wrapButtonTitle": "Wrap selected text with brackets, or insert empty brackets at cursor",
+		"colorPickerTitle": "Pick a color and insert",
+		"hexInputTitle": "Enter HEX and press Enter to insert",
+		"presetSlot": {
+			"occupiedTitle": "Left click to insert: {{color}}\nRight click to overwrite with: {{currentColor}}",
+			"emptyTitle": "Empty slot\nRight click to save: {{currentColor}}"
+		},
+		"libraryButtonTitle": "Open advanced color library"
+	},
+	"colorLibrary": {
+		"header": "📂 Color Library",
+		"renameButton": "Rename",
+		"deleteButton": "Delete",
+		"addButton": "+New",
+		"slotCountLabel": "Main panel slots (3-20):",
+		"orientationLabel": "Main panel orientation:",
+		"orientationHorizontal": "Horizontal",
+		"orientationVertical": "Vertical",
+		"hint": "💡 Left click: insert color | Right click: save current color to this slot"
+	},
+	"colorFeatures": {
+		"title": "Enable Color Features (Experimental)",
+		"desc": "Enable to add color tags in lyrics and show the floating color toolbar."
+	},
+	"ae": {
+        "title": "✨ AE Effect Subtitles Export Center",
+        "step1": "1. Select Effect Template",
+        "builtin": "Built-in",
+        "generateBtn": "⚡ Generate and Download JSX Script",
+        "descPrefix": "Description: ",
+        "step2": "2. Template Management",
+        "dragHintActive": "Release mouse to import...",
+        "dragHint": "Drag & drop .js / .txt template files here to install",
+        "installed": "Installed Templates",
+        "delete": "Delete",
+        "errorNoLyrics": "Export failed: No lyric data available! Please edit or sync lyrics first.",
+        "successExport": "🎉 JSX script generated and downloaded successfully! Please run it in After Effects.",
+        "errorExport": "Template execution failed: ",
+        "importError": "Import failed: Invalid file format, 'buildAMLLScript' function not found!",
+        "customDesc": "Custom template imported by user",
+        "importSuccess": "🎉 Template \"{{name}}\" imported successfully!",
+        "deleteMsg": "Template deleted"
+		,"enableEffectsToggle": "✨ Include built-in visual effects (Gaussian Blur/Global Glow)",
+		"pureModeHint": "💡 Pure layout mode is enabled: The exported file will strip out all visual filter effects, retaining only coordinate axis displacement and font coloring. Suitable for advanced users for secondary processing."
+    }
+}
