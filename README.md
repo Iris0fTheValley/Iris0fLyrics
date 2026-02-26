@@ -1,4 +1,3 @@
-[Uploading README.md…]()
 # Iris0fLyrics
 All-in-one TTML lyrics editor with intuitive color markup, asset library, and AI-assisted After Effects export for highly customizable per-character colored karaoke videos. 一站式TTML歌词编辑工具，支持直观的颜色标记、色彩资产库，以及AI辅助的After Effects导出，轻松实现高自定义性的逐字上色特效字幕视频。
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
