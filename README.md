@@ -154,3 +154,6 @@ pnpm build
 参考中文模板：./locales/zh-CN/translation.json
 
 翻译索引：./src/i18n/index.ts
+
+---
+AI介入声明：本项目有AI介入辅助开发
