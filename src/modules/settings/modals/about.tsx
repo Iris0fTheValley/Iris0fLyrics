@@ -27,12 +27,12 @@ export const SettingsAboutTab = () => {
 		<Flex direction="column" gap="4">
 			<Flex direction="column" gap="1">
 				<Heading size="4">
-					{t("aboutModal.appName", "Apple Music-like lyrics TTML Tools")}
+					{t("aboutModal.appName", "Iris0fLyrics TTML Tools")}
 				</Heading>
 				<Text as="div" size="2" color="gray">
 					{t(
 						"aboutModal.description",
-						"一个用于 Apple Music-like lyrics 生态的逐词歌词 TTML 编辑和时间轴工具",
+						"Iris0fLyrics —— 一站式逐字特效字幕制作工具 人性化 · 高自定义 · 低学习成本 本项目基于 amll-ttml-tool 扩展而来",
 					)}
 				</Text>
 			</Flex>
@@ -52,7 +52,7 @@ export const SettingsAboutTab = () => {
 										t("aboutModal.unknown", "unknown")
 									) : (
 										<Link
-											href={`https://github.com/Steve-xmh/amll-ttml-tool/commit/${GIT_COMMIT}`}
+											href={`https://github.com/Iris0fTheValley/Iris0fLyrics/commit/${GIT_COMMIT}`}
 											target="_blank"
 											rel="noreferrer"
 										>
