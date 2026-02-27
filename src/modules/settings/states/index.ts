@@ -73,5 +73,5 @@ export const enableAutoRomanizationPredictionAtom = atomWithStorage(
 
 export const enableColorFeaturesAtom = atomWithStorage(
 	"enableColorFeatures",
-	false,
+	true,
 );
