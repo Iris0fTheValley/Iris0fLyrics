@@ -181,17 +181,17 @@ export const useTopMenuActions = () => {
 
 	const onOpenGitHub = useCallback(async () => {
 		if (import.meta.env.TAURI_ENV_PLATFORM) {
-			await open("https://github.com/Steve-xmh/amll-ttml-tool");
+			await open("https://github.com/Iris0fTheValley/Iris0fLyrics");
 		} else {
-			window.open("https://github.com/Steve-xmh/amll-ttml-tool");
+			window.open("https://github.com/Iris0fTheValley/Iris0fLyrics");
 		}
 	}, []);
 
 	const onOpenWiki = useCallback(async () => {
 		if (import.meta.env.TAURI_ENV_PLATFORM) {
-			await open("https://github.com/Steve-xmh/amll-ttml-tool/wiki");
+			await open("https://github.com/Iris0fTheValley/Iris0fLyrics/wiki");
 		} else {
-			window.open("https://github.com/Steve-xmh/amll-ttml-tool/wiki");
+			window.open("https://github.com/Iris0fTheValley/Iris0fLyrics/wiki");
 		}
 	}, []);
 
