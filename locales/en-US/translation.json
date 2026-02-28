@@ -172,7 +172,7 @@
 			"sync": "Time",
 			"preview": "Preview"
 		},
-		"appName": "Apple Music-like Lyrics TTML Tool",
+		"appName": "Iris0fLyrics TTML Tools",
 		"menu": {
 			"file": "File",
 			"newLyric": "New lyrics",
@@ -594,7 +594,7 @@
 		}
 	},
 	"aboutModal": {
-		"appName": "Apple Music-like Lyrics TTML Tool",
+		"appName": "Iris0fLyrics TTML Tools",
 		"description": "A Word-by-Word TTML Editing and Timeline Tool for Apple Music-like Lyrics",
 		"buildDate": "Build Date: {date}",
 		"gitCommit": "Git Commit: {commit}"

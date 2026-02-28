@@ -83,10 +83,10 @@ const plugins: Plugin[] = [
 			maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
 		},
 		manifest: {
-			name: "Apple Music-like lyrics TTML Tool",
+			name: "Iris0fLyrics TTML Tools",
 			id: "amll-ttml-tool",
 			short_name: "AMLL TTML Tool",
-			description: "一个用于 Apple Music 的逐词歌词 TTML 编辑和时间轴工具",
+			description: "Iris0fLyrics —— 一站式逐字特效字幕制作工具 人性化 · 高自定义 · 低学习成本 本项目基于 amll-ttml-tool 扩展而来",
 			theme_color: "#18a058",
 			icons: [
 				{

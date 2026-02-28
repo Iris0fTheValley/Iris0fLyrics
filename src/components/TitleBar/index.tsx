@@ -69,7 +69,7 @@ export const TitleBar: FC = () => {
 				!import.meta.env.TAURI_ENV_PLATFORM && (
 					<Text color="gray" wrap="nowrap" size="2" mr="2">
 						<span className={styles.title}>
-							{t("topBar.appName", "Apple Music-like Lyrics TTML Tool")}
+							{t("topBar.appName", "Iris0fLyrics TTML Tools")}
 						</span>
 					</Text>
 				)
