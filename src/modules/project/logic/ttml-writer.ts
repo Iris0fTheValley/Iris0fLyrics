@@ -12,7 +12,7 @@
 /**
  * @fileoverview
  * 用于将内部歌词数组对象导出成 TTML 格式的模块
- * 但是可能会有信息会丢失
+ * 现已支持标准 tts:color 颜色语法解析与导出
  */
 
 import type { LyricLine, LyricWord, TTMLLyric } from "../../../types/ttml.ts";
@@ -42,14 +42,53 @@ export default function exportTTMLText(
 
 	const doc = new Document();
 
+	// 新增：将 {字#颜色} 翻译为标准 <span tts:color> 的解析器
+	function appendColoredText(parentEl: Element, rawText: string) {
+		if (!rawText) return;
+
+		// 匹配情况1: 整句带后缀颜色，如 "一段文字#FF0000"
+		const suffixMatch = rawText.match(/^(.*?)#([0-9A-Fa-f]{6})\s*$/);
+		if (suffixMatch && !rawText.includes('{')) {
+			const innerSpan = doc.createElement("span");
+			innerSpan.setAttribute("tts:color", `#${suffixMatch[2]}`);
+			innerSpan.appendChild(doc.createTextNode(suffixMatch[1] as string));
+			parentEl.appendChild(innerSpan);
+			return;
+		}
+
+		// 匹配情况2: 句中夹杂颜色，如 "普通 {带色#FF0000} 普通"
+		const regex = /\{([^}]+)#([0-9A-Fa-f]{6})\}/g;
+		let lastIndex = 0;
+		
+		//  使用现代的 matchAll 语法，解决 Biome 报错
+		for (const match of rawText.matchAll(regex)) {
+			if (match.index !== undefined && match.index > lastIndex) {
+				// 塞入没颜色的普通文字
+				parentEl.appendChild(doc.createTextNode(rawText.substring(lastIndex, match.index)));
+			}
+			// 塞入有颜色的 span 标签
+			const innerSpan = doc.createElement("span");
+			innerSpan.setAttribute("tts:color", `#${match[2]}`);
+			innerSpan.appendChild(doc.createTextNode(match[1] as string));
+			parentEl.appendChild(innerSpan);
+
+			lastIndex = (match.index ?? 0) + match[0].length;
+		}
+
+		if (lastIndex < rawText.length) {
+			// 塞入尾部剩余的普通文字
+			parentEl.appendChild(doc.createTextNode(rawText.substring(lastIndex)));
+		}
+	}
 	function createWordElement(word: LyricWord): Element {
 		const span = doc.createElement("span");
 		span.setAttribute("begin", msToTimestamp(word.startTime));
 		span.setAttribute("end", msToTimestamp(word.endTime));
 		if (word.obscene) span.setAttribute("amll:obscene", "true");
-		if (word.emptyBeat)
-			span.setAttribute("amll:empty-beat", `${word.emptyBeat}`);
-		span.appendChild(doc.createTextNode(word.word));
+		if (word.emptyBeat) span.setAttribute("amll:empty-beat", `${word.emptyBeat}`);
+		
+		// 🌟 改用色彩解析引擎处理歌词
+		appendColoredText(span, word.word);
 		return span;
 	}
 
@@ -57,7 +96,9 @@ export default function exportTTMLText(
 		const span = doc.createElement("span");
 		span.setAttribute("begin", msToTimestamp(word.startTime));
 		span.setAttribute("end", msToTimestamp(word.endTime));
-		span.appendChild(doc.createTextNode(word.romanWord));
+		
+		// 🌟 音译歌词也支持色彩解析
+		appendColoredText(span, word.romanWord);
 		return span;
 	}
 
@@ -66,22 +107,15 @@ export default function exportTTMLText(
 	ttRoot.setAttribute("xmlns", "http://www.w3.org/ns/ttml");
 	ttRoot.setAttribute("xmlns:ttm", "http://www.w3.org/ns/ttml#metadata");
 	ttRoot.setAttribute("xmlns:amll", "http://www.example.com/ns/amll");
-	ttRoot.setAttribute(
-		"xmlns:itunes",
-		"http://music.apple.com/lyric-ttml-internal",
-	);
+	ttRoot.setAttribute("xmlns:itunes", "http://music.apple.com/lyric-ttml-internal");
+	// 🌟 新增：声明 tts 样式命名空间，否则别的软件不认识 tts:color
+	ttRoot.setAttribute("xmlns:tts", "http://www.w3.org/ns/ttml#styling");
 
-	// Determine itunes:timing mode for Spicylyrics compatibility
-	// Word = at least one line has 2+ non-blank words (dynamic/per-word timing)
-	// Line = has lyric lines but every line has 0 or 1 non-blank word
-	// None = no timed words at all
+	// Determine itunes:timing mode
 	const nonBlankWordCountsPerLine = lyric.map(
 		(l) => l.words.filter((w) => w.word.trim().length > 0).length,
 	);
-	const totalNonBlankWords = nonBlankWordCountsPerLine.reduce(
-		(sum, v) => sum + v,
-		0,
-	);
+	const totalNonBlankWords = nonBlankWordCountsPerLine.reduce((sum, v) => sum + v, 0);
 	const hasAnyTiming = lyric.some((l) =>
 		l.words.some((w) => w.word.trim().length > 0 && w.endTime > w.startTime),
 	);
@@ -92,9 +126,7 @@ export default function exportTTMLText(
 	ttRoot.setAttribute("itunes:timing", timingMode);
 
 	doc.appendChild(ttRoot);
-
 	const head = doc.createElement("head");
-
 	ttRoot.appendChild(head);
 
 	const body = doc.createElement("body");
@@ -104,28 +136,22 @@ export default function exportTTMLText(
 	const mainPersonAgent = doc.createElement("ttm:agent");
 	mainPersonAgent.setAttribute("type", "person");
 	mainPersonAgent.setAttribute("xml:id", "v1");
-
 	metadataEl.appendChild(mainPersonAgent);
 
 	if (hasOtherPerson) {
 		const otherPersonAgent = doc.createElement("ttm:agent");
 		otherPersonAgent.setAttribute("type", "other");
 		otherPersonAgent.setAttribute("xml:id", "v2");
-
 		metadataEl.appendChild(otherPersonAgent);
 	}
 
-	// Extract songwriter metadata to emit in iTunes format (Spicylyrics compatibility)
 	const songwriterMeta = ttmlLyric.metadata.find(
 		(m) => m.key === "songwriter" && m.value.some((v) => v.trim().length > 0),
 	);
 
 	if (songwriterMeta) {
 		const iTunesMetadata = doc.createElement("iTunesMetadata");
-		iTunesMetadata.setAttribute(
-			"xmlns",
-			"http://music.apple.com/lyric-ttml-internal",
-		);
+		iTunesMetadata.setAttribute("xmlns", "http://music.apple.com/lyric-ttml-internal");
 		const songwritersEl = doc.createElement("songwriters");
 		for (const name of songwriterMeta.value) {
 			const trimmed = name.trim();
@@ -140,7 +166,6 @@ export default function exportTTMLText(
 		}
 	}
 
-	// Append remaining metadata entries (skip songwriter since it's in iTunes format)
 	for (const metadata of ttmlLyric.metadata) {
 		if (metadata.key === "songwriter") continue;
 		for (const value of metadata.value) {
@@ -154,12 +179,7 @@ export default function exportTTMLText(
 	head.appendChild(metadataEl);
 
 	let i = 0;
-
-	const romanizationMap = new Map<
-		string,
-		{ main: LyricWord[]; bg: LyricWord[] }
-	>();
-
+	const romanizationMap = new Map<string, { main: LyricWord[]; bg: LyricWord[] }>();
 	const guessDuration = lyric[lyric.length - 1]?.endTime ?? 0;
 	body.setAttribute("dur", msToTimestamp(guessDuration));
 	const isDynamicLyric = lyric.some(
@@ -182,7 +202,6 @@ export default function exportTTMLText(
 
 			lineP.setAttribute("begin", msToTimestamp(beginTime));
 			lineP.setAttribute("end", msToTimestamp(endTime));
-
 			lineP.setAttribute("ttm:agent", line.isDuet ? "v2" : "v1");
 
 			const itunesKey = `L${++i}`;
@@ -208,7 +227,8 @@ export default function exportTTMLText(
 				lineP.setAttribute("end", msToTimestamp(line.endTime));
 			} else {
 				const word = line.words[0];
-				lineP.appendChild(doc.createTextNode(word.word));
+				// 🌟 静态整行歌词颜色解析
+				appendColoredText(lineP, word.word);
 				lineP.setAttribute("begin", msToTimestamp(word.startTime));
 				lineP.setAttribute("end", msToTimestamp(word.endTime));
 			}
@@ -226,29 +246,22 @@ export default function exportTTMLText(
 					let beginTime = Number.POSITIVE_INFINITY;
 					let endTime = 0;
 
-					const firstWordIndex = bgLine.words.findIndex(
-						(w) => w.word.trim().length > 0,
-					);
-					const lastWordIndex = bgLine.words
-						.map((w) => w.word.trim().length > 0)
-						.lastIndexOf(true);
+					const firstWordIndex = bgLine.words.findIndex((w) => w.word.trim().length > 0);
+					const lastWordIndex = bgLine.words.map((w) => w.word.trim().length > 0).lastIndexOf(true);
 
-					for (
-						let wordIndex = 0;
-						wordIndex < bgLine.words.length;
-						wordIndex++
-					) {
+					for (let wordIndex = 0; wordIndex < bgLine.words.length; wordIndex++) {
 						const word = bgLine.words[wordIndex];
 						if (word.word.trim().length === 0) {
 							bgLineSpan.appendChild(doc.createTextNode(word.word));
 						} else {
 							const span = createWordElement(word);
 
-							if (wordIndex === firstWordIndex && span.firstChild) {
-								span.firstChild.nodeValue = `(${span.firstChild.nodeValue}`;
+							// 🌟 物理级修复括号插入逻辑，防止因为标签层级变深导致报错
+							if (wordIndex === firstWordIndex) {
+								span.insertBefore(doc.createTextNode("("), span.firstChild);
 							}
-							if (wordIndex === lastWordIndex && span.firstChild) {
-								span.firstChild.nodeValue = `${span.firstChild.nodeValue})`;
+							if (wordIndex === lastWordIndex) {
+								span.appendChild(doc.createTextNode(")"));
 							}
 
 							bgLineSpan.appendChild(span);
@@ -260,7 +273,11 @@ export default function exportTTMLText(
 					bgLineSpan.setAttribute("end", msToTimestamp(endTime));
 				} else {
 					const word = bgLine.words[0];
-					bgLineSpan.appendChild(doc.createTextNode(`(${word.word})`));
+					// 🌟 静态背景歌词颜色解析
+					bgLineSpan.appendChild(doc.createTextNode("("));
+					appendColoredText(bgLineSpan, word.word);
+					bgLineSpan.appendChild(doc.createTextNode(")"));
+					
 					bgLineSpan.setAttribute("begin", msToTimestamp(word.startTime));
 					bgLineSpan.setAttribute("end", msToTimestamp(word.endTime));
 				}
@@ -269,14 +286,16 @@ export default function exportTTMLText(
 					const span = doc.createElement("span");
 					span.setAttribute("ttm:role", "x-translation");
 					span.setAttribute("xml:lang", "zh-CN");
-					span.appendChild(doc.createTextNode(bgLine.translatedLyric));
+					// 🌟 翻译歌词颜色解析
+					appendColoredText(span, bgLine.translatedLyric);
 					bgLineSpan.appendChild(span);
 				}
 
 				if (bgLine.romanLyric) {
 					const span = doc.createElement("span");
 					span.setAttribute("ttm:role", "x-roman");
-					span.appendChild(doc.createTextNode(bgLine.romanLyric));
+					// 🌟 音译歌词颜色解析
+					appendColoredText(span, bgLine.romanLyric);
 					bgLineSpan.appendChild(span);
 				}
 
@@ -287,14 +306,16 @@ export default function exportTTMLText(
 				const span = doc.createElement("span");
 				span.setAttribute("ttm:role", "x-translation");
 				span.setAttribute("xml:lang", "zh-CN");
-				span.appendChild(doc.createTextNode(line.translatedLyric));
+				// 🌟 翻译歌词颜色解析
+				appendColoredText(span, line.translatedLyric);
 				lineP.appendChild(span);
 			}
 
 			if (line.romanLyric) {
 				const span = doc.createElement("span");
 				span.setAttribute("ttm:role", "x-roman");
-				span.appendChild(doc.createTextNode(line.romanLyric));
+				// 🌟 音译歌词颜色解析
+				appendColoredText(span, line.romanLyric);
 				lineP.appendChild(span);
 			}
 
@@ -314,10 +335,7 @@ export default function exportTTMLText(
 
 	if (romanizationMap.size > 0) {
 		const itunesMeta = doc.createElement("iTunesMetadata");
-		itunesMeta.setAttribute(
-			"xmlns",
-			"http://music.apple.com/lyric-ttml-internal",
-		);
+		itunesMeta.setAttribute("xmlns", "http://music.apple.com/lyric-ttml-internal");
 
 		const transliterations = doc.createElement("transliterations");
 		const transliteration = doc.createElement("transliteration");
@@ -334,26 +352,23 @@ export default function exportTTMLText(
 				}
 			}
 
-			const hasBgRoman = bg.some(
-				(w) => w.romanWord && w.romanWord.trim().length > 0,
-			);
+			const hasBgRoman = bg.some((w) => w.romanWord && w.romanWord.trim().length > 0);
 			if (hasBgRoman) {
 				const bgSpan = doc.createElement("span");
 				bgSpan.setAttribute("ttm:role", "x-bg");
 
-				const romanBgWords = bg.filter(
-					(w) => w.romanWord && w.romanWord.trim().length > 0,
-				);
+				const romanBgWords = bg.filter((w) => w.romanWord && w.romanWord.trim().length > 0);
 
 				for (let wordIndex = 0; wordIndex < romanBgWords.length; wordIndex++) {
 					const word = romanBgWords[wordIndex];
 					const span = createRomanizationSpan(word);
 
-					if (wordIndex === 0 && span.firstChild) {
-						span.firstChild.nodeValue = `(${span.firstChild.nodeValue}`;
+					// 🌟 物理级修复括号插入逻辑
+					if (wordIndex === 0) {
+						span.insertBefore(doc.createTextNode("("), span.firstChild);
 					}
-					if (wordIndex === romanBgWords.length - 1 && span.firstChild) {
-						span.firstChild.nodeValue = `${span.firstChild.nodeValue})`;
+					if (wordIndex === romanBgWords.length - 1) {
+						span.appendChild(doc.createTextNode(")"));
 					}
 
 					bgSpan.appendChild(span);
@@ -374,7 +389,6 @@ export default function exportTTMLText(
 
 		transliterations.appendChild(transliteration);
 		itunesMeta.appendChild(transliterations);
-
 		metadataEl.appendChild(itunesMeta);
 	}
 
