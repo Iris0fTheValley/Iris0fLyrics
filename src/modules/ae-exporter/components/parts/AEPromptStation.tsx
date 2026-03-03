@@ -151,7 +151,7 @@ ${effectPrompt || '无需特效。'}
 				{/* 字体外观设置 */}
 				<Card size="2" variant="surface">
 					<Flex direction="column" gap="4">
-						<Text weight="bold" size="3" mb="2">🔤 字体外观硬编码</Text>
+						<Text weight="bold" size="3" mb="2"> 字体外观硬编码</Text>
 						<Box>
 							<Text size="2" color="gray" mb="1" style={{ display: 'block' }}>AE 字体名 (需与 AE 中完全一致)</Text>
 							<TextField.Root value={config.fontFamily || 'Microsoft YaHei'} onChange={(e) => updateConfig('fontFamily', e.target.value)} />
@@ -170,13 +170,13 @@ ${effectPrompt || '无需特效。'}
 				{/* 提示词生成器 */}
 				<Card size="2" variant="surface" style={{ backgroundColor: 'var(--indigo-2)', border: '1px solid var(--indigo-6)' }}>
 					<Flex direction="column" gap="3" height="100%">
-						<Text weight="bold" size="3" color="indigo">🧠 第一步：给大模型的提示词</Text>
+						<Text weight="bold" size="3" color="indigo"> 第一步：给大模型的提示词</Text>
 						<Box style={{ flex: 1 }}>
-							<Text size="2" color="gray" mb="1" style={{ display: 'block' }}>💨 想要什么动效？</Text>
+							<Text size="2" color="gray" mb="1" style={{ display: 'block' }}> 想要什么动效？</Text>
 							<TextArea value={motionPrompt} onChange={(e) => setMotionPrompt(e.target.value)} style={{ height: '60px', resize: 'none' }} />
 						</Box>
 						<Box style={{ flex: 1 }}>
-							<Text size="2" color="gray" mb="1" style={{ display: 'block' }}>✨ 想要什么特效？</Text>
+							<Text size="2" color="gray" mb="1" style={{ display: 'block' }}> 想要什么特效？</Text>
 							<TextArea value={effectPrompt} onChange={(e) => setEffectPrompt(e.target.value)} style={{ height: '60px', resize: 'none' }} />
 						</Box>
 						<Button size="3" color="indigo" variant="soft" style={{ cursor: 'pointer', marginTop: 'auto' }} onClick={handleCopyPrompt}>
@@ -186,7 +186,7 @@ ${effectPrompt || '无需特效。'}
 				</Card>
 			</Grid>
 
-			{/* 🌟 AI 代码回填与终极导出区 */}
+			{/* 🌟 AI 代码回填与导出区 */}
 			<Card size="2" variant="surface" style={{ backgroundColor: 'var(--jade-2)', border: '1px solid var(--jade-6)' }}>
 				<Flex direction="column" gap="3">
 					<Text weight="bold" size="3" color="jade">⚡ 第二步：粘贴 AI 生成的代码并合成导出</Text>
@@ -198,7 +198,7 @@ ${effectPrompt || '无需特效。'}
 						style={{ height: '150px', fontFamily: 'monospace' }}
 					/>
 					<Button size="3" color="jade" variant="solid" style={{ cursor: 'pointer' }} onClick={handleExportWithAI}>
-						🚀 组装底座数据与 AI 插件，导出终极 JSX！
+						组装底座数据与 AI 插件，导出JSX
 					</Button>
 				</Flex>
 			</Card>

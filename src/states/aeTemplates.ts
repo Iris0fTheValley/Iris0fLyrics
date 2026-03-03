@@ -280,8 +280,8 @@ const performanceCode = `function buildAMLLScript(data, options) {
 
 export const spatialNodeTemplate: AETemplate = {
   id: 'spatial-node-engine-pure',
-  name: '🌌 纯净版：基础时空轨迹引擎 (支持 AI 插件注入)',
-  description: '【最强底座】包含钩子函数架构，可完美解析 AI 生成的动效与特效片段，而不破坏坐标阵列。',
+  name: '🌌 纯净版：基础空间动线 ',
+  description: '里头只有纯粹的动线和关键帧,用来给ae手工大神自定义的。',
   code: spatialNodeEngineCode,
   isDefault: true,
 };
