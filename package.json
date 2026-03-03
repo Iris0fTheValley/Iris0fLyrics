@@ -43,6 +43,7 @@
 		"react-dom": "^19.2.3",
 		"react-error-boundary": "^6.0.0",
 		"react-i18next": "^16.5.0",
+		"react-moveable": "^0.56.0",
 		"react-toastify": "^11.0.5",
 		"react-viewport-list": "^7.1.2",
 		"save-file": "^2.3.1",

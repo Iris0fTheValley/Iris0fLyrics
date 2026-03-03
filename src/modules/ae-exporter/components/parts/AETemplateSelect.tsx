@@ -1,5 +1,5 @@
 // 文件路径：src/modules/ae-exporter/components/parts/AETemplateSelect.tsx
-import { Box, Button, Card, Flex, ScrollArea, Select, Switch, Text } from '@radix-ui/themes';
+import { Box, Button, Card, Flex, Grid, ScrollArea, Select, Switch, Text } from '@radix-ui/themes';
 import { useAtom, useSetAtom, useStore } from 'jotai';
 import { type DragEvent, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -7,8 +7,9 @@ import { toast } from 'react-toastify';
 import { uid } from 'uid';
 
 import { aeConfigAtom } from '$/states/aeConfig';
-import { type AETemplate, aeTemplatesAtom, selectedAETemplateIdAtom, defaultAETemplate, performanceAETemplate } from '$/states/aeTemplates';
+import { type AETemplate, aeTemplatesAtom, selectedAETemplateIdAtom, defaultAETemplate, performanceAETemplate, spatialNodeTemplate } from '$/states/aeTemplates';
 import { isGlobalFileDraggingAtom, lyricLinesAtom } from '$/states/main';
+import { spatialDataAtom } from '$/states/spatial'; 
 
 interface AETemplateSelectProps {
 	enableEffects: boolean;
@@ -24,21 +25,20 @@ export default function AETemplateSelect({ enableEffects, setEnableEffects }: AE
 	const [isDragging, setIsDragging] = useState(false);
 	const setIsGlobalDragging = useSetAtom(isGlobalFileDraggingAtom);
 
-	// 🚀 核心修复 2：每次组件加载时，强制使用代码中最新的内置模板覆盖 localStorage 缓存
 	useEffect(() => {
 		setTemplates((prev) => {
 			const customTemplates = prev.filter((t) => !t.isDefault);
-			return [defaultAETemplate, performanceAETemplate, ...customTemplates];
+			return [spatialNodeTemplate, defaultAETemplate, performanceAETemplate, ...customTemplates];
 		});
 	}, [setTemplates]);
 
 	const currentTemplate = templates.find((tpl) => tpl.id === selectedId) || templates[0];
 
-	// =========== 核心：导出 JSX 逻辑 ===========
 	const handleGenerate = () => {
 		if (!currentTemplate) return;
 		try {
 			const ttmlData = store.get(lyricLinesAtom);
+			const spatialData = store.get(spatialDataAtom); 
 			const lines = ttmlData.lyricLines;
 			if (!lines || lines.length === 0) { toast.error(t('ae.exportErrorEmpty', '导出失败：当前没有可用的歌词数据！')); return; }
 			
@@ -49,17 +49,13 @@ export default function AETemplateSelect({ enableEffects, setEnableEffects }: AE
 				return width + (text.length * config.letterSpacing);
 			};
 
-			// 🚀 核心修复 3：强化正则！兼容用户只写 `文字#BB9955` 而漏掉 `{}` 的情况
 			const parseMixedText = (rawText: string, defaultColor: string, fontSize: number) => {
 				const result = [];
-				
-				// 优先检查无大括号的后缀写法，如 "Mary Magdelene#BB9955"
 				const suffixMatch = rawText.match(/^(.*?)#([0-9A-Fa-f]{6})$/);
 				if (suffixMatch && !rawText.includes('{')) {
 					result.push({ text: suffixMatch[1], color: `#${suffixMatch[2]}`, width: calculateWidth(suffixMatch[1], fontSize) });
 					return result;
 				}
-
 				const regex = /\{([^}]+)#([0-9A-Fa-f]{6})\}/g;
 				let lastIndex = 0;
 				let match = regex.exec(rawText);
@@ -96,15 +92,15 @@ export default function AETemplateSelect({ enableEffects, setEnableEffects }: AE
 				return { start: line.startTime / 1000, end: line.endTime / 1000, total_main_w, total_sub_w, main_words, sub_words };
 			});
 
-			const finalData = { maxTime, lines: parsedLines };
+			const finalData = { maxTime, lines: parsedLines, spatial: spatialData };
 			const executor = new Function('data', 'options', `${currentTemplate.code}\nreturn buildAMLLScript(data, options);`);
 			const jsxContent = executor(finalData, { enableEffects, config });
 
 			const blob = new Blob([jsxContent], { type: 'text/plain;charset=utf-8' });
 			const url = URL.createObjectURL(blob);
-			const a = document.createElement('a'); a.href = url; a.download = `AMLL_Effect_Lyrics_${Date.now()}.jsx`;
+			const a = document.createElement('a'); a.href = url; a.download = `AMLL_NodeEngine_Lyrics_${Date.now()}.jsx`;
 			document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-			toast.success(t('ae.exportSuccess', '🎉 JSX 脚本生成并下载成功！请在 AE 中运行。'));
+			toast.success(t('ae.exportSuccess', '🎉 节点 JSX 脚本生成成功！请在 AE 中运行。'));
 		} catch (error) { toast.error(t('ae.exportError', '模板执行失败: ') + (error instanceof Error ? error.message : String(error))); }
 	};
 
@@ -112,10 +108,10 @@ export default function AETemplateSelect({ enableEffects, setEnableEffects }: AE
 		const reader = new FileReader();
 		reader.onload = (evt) => {
 			const code = evt.target?.result as string;
-			if (!code.includes('buildAMLLScript')) { toast.error(t('ae.importFormatError', '导入失败：该文件不符合模板规范！')); return; }
-			const newTemplate: AETemplate = { id: uid(), name: file.name.replace(/\.[^/.]+$/, ''), description: t('ae.userImported', '用户导入自定义模板'), code: code, isDefault: false };
+			if (!code.includes('buildAMLLScript')) { toast.error(t('ae.importFormatError', '导入失败：该文件不符合规范！')); return; }
+			const newTemplate: AETemplate = { id: uid(), name: file.name.replace(/\.[^/.]+$/, ''), description: '用户导入模板', code: code, isDefault: false };
 			setTemplates((prev) => [...prev, newTemplate]); setSelectedId(newTemplate.id);
-			toast.success(t('ae.importSuccess', `🎉 模板 "{{name}}" 导入安装成功！`, { name: newTemplate.name }));
+			toast.success(t('ae.importSuccess', `🎉 模板导入成功！`));
 		};
 		reader.readAsText(file);
 	}, [setTemplates, setSelectedId, t]);
@@ -139,55 +135,55 @@ export default function AETemplateSelect({ enableEffects, setEnableEffects }: AE
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a'); a.href = url; a.download = `${template.name}.js`;
 		document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-		toast.success(t('ae.templateExportSuccess', `🎉 模板 "${template.name}" 导出成功！`));
 	};
 
 	return (
-		<Flex direction="column" gap="4" style={{ flex: '0 0 500px', width: '500px' }}>
-			{/* ... 其余 UI 渲染部分保持不变 ... */}
-			<Card size="3" variant="surface">
-				<Flex direction="column" gap="4">
-					<Text weight="bold" size="3">{t('ae.selectTemplate', '1. 选择特效模板')}</Text>
-					<Flex direction="column" gap="3">
-						<Flex gap="3" align="center">
-							<Select.Root value={selectedId} onValueChange={setSelectedId}>
-								<Select.Trigger style={{ minWidth: '300px' }} />
-								<Select.Content>{templates.map((tpl) => (<Select.Item key={tpl.id} value={tpl.id}>{tpl.name}</Select.Item>))}</Select.Content>
-							</Select.Root>
-							<Button size="2" color="jade" variant="solid" style={{ cursor: 'pointer', flex: 1 }} onClick={handleGenerate}>
-								⚡ {t('ae.exportJSX', '导出 JSX')}
-							</Button>
-						</Flex>
+		// 🌟 核心修改：双列 Grid，极度节省高度空间
+		<Grid columns="1fr 1fr" gap="4" style={{ width: '100%' }}>
+			
+			<Card size="2" variant="surface">
+				<Flex direction="column" gap="3" height="100%">
+					<Text weight="bold" size="3">🚀 1. 渲染导出台</Text>
+					<Flex direction="column" gap="3" justify="center" style={{ flex: 1 }}>
+						<Select.Root value={selectedId} onValueChange={setSelectedId}>
+							<Select.Trigger style={{ width: '100%' }} />
+							<Select.Content>{templates.map((tpl) => (<Select.Item key={tpl.id} value={tpl.id}>{tpl.name}</Select.Item>))}</Select.Content>
+						</Select.Root>
 						<Flex gap="2" align="center">
 							<Switch size="1" color="indigo" checked={enableEffects} onCheckedChange={setEnableEffects} style={{ cursor: 'pointer' }} />
-							<Text size="2" color="gray" style={{ userSelect: 'none' }}>✨ {t('ae.enableEffectsToggle', '附带内置特效渲染 (高斯模糊/全局发光)')}</Text>
+							<Text size="2" color="gray">✨ 附带内置特效渲染 (如全局发光)</Text>
 						</Flex>
+						<Button size="3" color="jade" variant="solid" style={{ cursor: 'pointer', width: '100%', marginTop: 'auto' }} onClick={handleGenerate}>
+							⚡ 编译节点数据并导出 JSX
+						</Button>
 					</Flex>
 				</Flex>
 			</Card>
 
-			<Card size="3" variant="surface" style={{ flex: 1 }}>
-				<Text weight="bold" size="3" mb="3">{t('ae.templateManager', '2. 模板管理区')}</Text>
-				<Box 
-					onDrop={handleDropLocal} onDragOver={handleDragOverLocal} onDragLeave={handleDragLeaveLocal} onClick={handleFileClick}
-					style={{ cursor: 'pointer', border: `2px dashed ${isDragging ? 'var(--accent-9)' : 'var(--gray-7)'}`, borderRadius: '8px', padding: '15px', textAlign: 'center', backgroundColor: isDragging ? 'var(--accent-3)' : 'transparent', transition: 'all 0.2s', marginBottom: '15px' }}
-				>
-					<Text size="2" color={isDragging ? 'jade' : 'gray'}>{isDragging ? t('ae.dropToImport', '松开鼠标即可导入...') : t('ae.clickOrDropToImport', '点击此处 或 拖拽 .js / .txt 到此处安装')}</Text>
-				</Box>
-				<ScrollArea style={{ height: '120px' }} type="auto" scrollbars="vertical">
-					<Flex direction="column" gap="2">
-						{templates.map((tpl) => (
-							<Flex key={tpl.id} justify="between" align="center" p="2" style={{ backgroundColor: 'var(--gray-3)', borderRadius: '6px' }}>
-								<Box><Text size="2" weight="bold">{tpl.name}</Text></Box>
-								<Flex gap="2">
-									<Button size="1" color="cyan" variant="soft" onClick={() => handleExportTemplate(tpl)} style={{ cursor: 'pointer' }}>{t('ae.export', '导出')}</Button>
-									{!tpl.isDefault && (<Button size="1" color="red" variant="soft" onClick={() => { setTemplates((prev) => prev.filter((t) => t.id !== tpl.id)); if (selectedId === tpl.id) setSelectedId(templates[0]?.id || ''); }} style={{ cursor: 'pointer' }}>{t('ae.delete', '删除')}</Button>)}
+			<Card size="2" variant="surface">
+				<Flex direction="column" height="100%">
+					<Text weight="bold" size="3" mb="2">📂 2. 模板引擎管理</Text>
+					<Box 
+						onDrop={handleDropLocal} onDragOver={handleDragOverLocal} onDragLeave={handleDragLeaveLocal} onClick={handleFileClick}
+						style={{ cursor: 'pointer', border: `2px dashed ${isDragging ? 'var(--accent-9)' : 'var(--gray-7)'}`, borderRadius: '6px', padding: '10px', textAlign: 'center', backgroundColor: isDragging ? 'var(--accent-3)' : 'transparent', transition: 'all 0.2s', marginBottom: '10px' }}
+					>
+						<Text size="2" color={isDragging ? 'jade' : 'gray'}>{isDragging ? '松开导入' : '拖拽 .js 模板导入'}</Text>
+					</Box>
+					<ScrollArea style={{ height: '90px' }} type="auto" scrollbars="vertical">
+						<Flex direction="column" gap="2">
+							{templates.map((tpl) => (
+								<Flex key={tpl.id} justify="between" align="center" p="2" style={{ backgroundColor: 'var(--gray-3)', borderRadius: '4px' }}>
+									<Box><Text size="2" weight="bold">{tpl.name}</Text></Box>
+									<Flex gap="2">
+										<Button size="1" color="cyan" variant="soft" onClick={() => handleExportTemplate(tpl)} style={{ cursor: 'pointer' }}>导出</Button>
+										{!tpl.isDefault && (<Button size="1" color="red" variant="soft" onClick={() => { setTemplates((prev) => prev.filter((t) => t.id !== tpl.id)); if (selectedId === tpl.id) setSelectedId(templates[0]?.id || ''); }} style={{ cursor: 'pointer' }}>删除</Button>)}
+									</Flex>
 								</Flex>
-							</Flex>
-						))}
-					</Flex>
-				</ScrollArea>
+							))}
+						</Flex>
+					</ScrollArea>
+				</Flex>
 			</Card>
-		</Flex>
+		</Grid>
 	);
 }
