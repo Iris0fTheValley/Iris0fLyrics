@@ -1,16 +1,25 @@
 // 文件路径：src/modules/ae-exporter/components/parts/AESpatialStage.tsx
-// 🌟 修复 4: 按照 Biome 的严格要求重新排序 import
 import { Box, Flex, Text } from '@radix-ui/themes';
 import { useAtom } from 'jotai';
 import { useRef } from 'react';
 
+import { aeConfigAtom } from '$/states/aeConfig';
 import { activeNodeIdAtom, activeTrackIdAtom, spatialDataAtom, type SpatialNode } from '$/states/spatial';
 import AENode from './AENode';
+
+type ExtendedConfig = { width?: number; height?: number; };
 
 export default function AESpatialStage() {
 	const [data, setData] = useAtom(spatialDataAtom);
 	const [activeTrackId] = useAtom(activeTrackIdAtom);
 	const [, setActiveNodeId] = useAtom(activeNodeIdAtom);
+	
+	const [rawConfig] = useAtom(aeConfigAtom);
+	const config = rawConfig as typeof rawConfig & ExtendedConfig;
+	const stageWidth = config.width || 1920;
+	const stageHeight = config.height || 1080;
+	const isLandscape = stageWidth >= stageHeight;
+
 	const stageRef = useRef<HTMLDivElement>(null);
 
 	const handleDrop = (e: React.DragEvent) => {
@@ -25,7 +34,6 @@ export default function AESpatialStage() {
 
 		setData(prev => {
 			const track = { ...prev[activeTrackId] };
-			
 			const trackPrefix = activeTrackId === 'main' ? '主歌词' : activeTrackId === 'sub' ? '翻译' : '音译';
 			let text = '';
 			if (nodeType === 'in') text = `${trackPrefix}入场点`;
@@ -36,16 +44,12 @@ export default function AESpatialStage() {
 
 			const newNode: SpatialNode = { id, x, y, rot: 0, width: 140, height: 36, text };
 
-			if (nodeType === 'preFocus') {
-				track.preFocus = [...track.preFocus, newNode];
-			} else if (nodeType === 'postFocus') {
-				track.postFocus = [...track.postFocus, newNode];
-			} else {
-				// 🌟 修复 3: 移除 as any，使用严格的类型限定，安抚 Biome
+			if (nodeType === 'preFocus') track.preFocus = [...track.preFocus, newNode];
+			else if (nodeType === 'postFocus') track.postFocus = [...track.postFocus, newNode];
+			else {
 				const key = nodeType as 'in' | 'focus' | 'out';
 				track[key] = newNode;
 			}
-			
 			return { ...prev, [activeTrackId]: track };
 		});
 		setActiveNodeId(id);
@@ -54,7 +58,6 @@ export default function AESpatialStage() {
 	const renderLines = (trackId: 'main' | 'sub' | 'ruby', color: string) => {
 		const track = data[trackId];
 		if (!track.visible) return null;
-
 		const points: SpatialNode[] = [];
 		if (track.in) points.push(track.in);
 		points.push(...track.preFocus);
@@ -79,23 +82,12 @@ export default function AESpatialStage() {
 	const renderTrackNodes = (trackId: 'main' | 'sub' | 'ruby', color: string) => {
 		const track = data[trackId];
 		const nodes = [];
-		
-		// 🌟 修复 1: TypeScript 类型强转。明确告诉 TS 这里的 ref 绝对不是 null
 		const ref = stageRef as React.RefObject<HTMLDivElement>;
 
 		if (track.in) nodes.push(<AENode key="in" trackId={trackId} nodeId="in" color={color} stageRef={ref} />);
-		
-		// 🌟 修复 2: 放弃使用 forEach，改用 for...of 循环，彻底解决返回值警告
-		for (const n of track.preFocus) {
-			nodes.push(<AENode key={n.id} trackId={trackId} nodeId={n.id} color={color} stageRef={ref} />);
-		}
-		
+		for (const n of track.preFocus) nodes.push(<AENode key={n.id} trackId={trackId} nodeId={n.id} color={color} stageRef={ref} />);
 		if (track.focus) nodes.push(<AENode key="focus" trackId={trackId} nodeId="focus" color={color} stageRef={ref} />);
-		
-		for (const n of track.postFocus) {
-			nodes.push(<AENode key={n.id} trackId={trackId} nodeId={n.id} color={color} stageRef={ref} />);
-		}
-		
+		for (const n of track.postFocus) nodes.push(<AENode key={n.id} trackId={trackId} nodeId={n.id} color={color} stageRef={ref} />);
 		if (track.out) nodes.push(<AENode key="out" trackId={trackId} nodeId="out" color={color} stageRef={ref} />);
 		
 		return nodes;
@@ -103,13 +95,29 @@ export default function AESpatialStage() {
 
 	return (
 		<Flex direction="column" gap="3" style={{ height: '100%' }}>
-			<Box style={{ flex: 1, position: 'relative', backgroundColor: 'var(--gray-2)', borderRadius: '8px', border: '1px solid var(--gray-6)', overflow: 'hidden' }}>
+			<Box style={{ flex: 1, backgroundColor: 'var(--gray-2)', borderRadius: '8px', border: '1px solid var(--gray-6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', overflow: 'hidden' }}>
 				<div 
-					ref={stageRef} style={{ position: 'absolute', inset: '10%', border: '1px dashed var(--gray-7)' }}
+					ref={stageRef} 
+					style={{ 
+						position: 'relative', 
+						aspectRatio: `${stageWidth} / ${stageHeight}`,
+						width: isLandscape ? '100%' : 'auto',
+						height: isLandscape ? 'auto' : '100%',
+						maxWidth: '100%',
+						maxHeight: '100%',
+						border: '2px solid var(--gray-8)',
+						backgroundColor: 'var(--gray-3)',
+						boxShadow: '0 4px 30px rgba(0,0,0,0.1)',
+						overflow: 'visible'
+					}}
 					onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
 					onDrop={handleDrop}
 				>
 					<svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}>
+						{/* 🌟 核心：绘制将画板分为 4 个象限的十字中心对齐辅助线 */}
+						<line x1="50%" y1="0%" x2="50%" y2="100%" stroke="var(--accent-a7)" strokeWidth="1" strokeDasharray="6 6" />
+						<line x1="0%" y1="50%" x2="100%" y2="50%" stroke="var(--accent-a7)" strokeWidth="1" strokeDasharray="6 6" />
+
 						{renderLines('main', '#7799CC')}
 						{renderLines('sub', '#FFDD88')}
 						{renderLines('ruby', '#779977')}
@@ -119,6 +127,7 @@ export default function AESpatialStage() {
 					{renderTrackNodes('sub', '#FFDD88')}
 					{renderTrackNodes('ruby', '#779977')}
 				</div>
+				
 				{!data.main.focus && !data.main.in && (
 					<Flex align="center" justify="center" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
 						<Text size="3" color="gray" style={{ opacity: 0.5 }}>请从右侧工具箱拖入节点以开始编排</Text>

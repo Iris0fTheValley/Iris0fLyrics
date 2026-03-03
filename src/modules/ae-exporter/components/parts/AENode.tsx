@@ -1,10 +1,10 @@
 // 文件路径：src/modules/ae-exporter/components/parts/AENode.tsx
-// 🌟 修复：严格按照字母 A-Z 重新排序了导入顺序
 import { Text } from '@radix-ui/themes';
 import { useAtom } from 'jotai';
 import { useRef } from 'react';
 import Moveable from 'react-moveable';
 
+import { aeConfigAtom } from '$/states/aeConfig';
 import { activeNodeIdAtom, activeTrackIdAtom, lockSubNodeDragAtom, spatialDataAtom, type SpatialNode, type TrackSpatial } from '$/states/spatial';
 
 interface AENodeProps {
@@ -14,18 +14,8 @@ interface AENodeProps {
 	stageRef: React.RefObject<HTMLDivElement>;
 }
 
-// 🌟 修复 noExplicitAny：严谨定义小本本里记录的数据类型
-interface StartStateNode {
-	x?: number;
-	y?: number;
-	rot?: number;
-}
-
-interface StartState {
-	main: StartStateNode | null;
-	sub: StartStateNode | null;
-	ruby: StartStateNode | null;
-}
+interface StartStateNode { x?: number; y?: number; rot?: number; }
+interface StartState { main: StartStateNode | null; sub: StartStateNode | null; ruby: StartStateNode | null; }
 
 const findNode = (track: TrackSpatial, id: string): SpatialNode | null => {
 	if (id === 'in') return track.in;
@@ -46,13 +36,10 @@ const produceTrack = (track: TrackSpatial, id: string, updater: (n: SpatialNode)
 
 const getCorrespondingNodeId = (targetTrack: TrackSpatial, sourceNodeId: string, sourceTrack: TrackSpatial): string | null => {
 	if (sourceNodeId === 'in' || sourceNodeId === 'focus' || sourceNodeId === 'out') return sourceNodeId;
-	
 	const preIdx = sourceTrack.preFocus.findIndex(n => n.id === sourceNodeId);
 	if (preIdx !== -1) return targetTrack.preFocus[preIdx]?.id || null;
-	
 	const postIdx = sourceTrack.postFocus.findIndex(n => n.id === sourceNodeId);
 	if (postIdx !== -1) return targetTrack.postFocus[postIdx]?.id || null;
-	
 	return null;
 };
 
@@ -62,9 +49,11 @@ export default function AENode({ trackId, nodeId, color, stageRef }: AENodeProps
 	const [activeNodeId, setActiveNodeId] = useAtom(activeNodeIdAtom);
 	const targetRef = useRef<HTMLDivElement>(null);
 	
-	// 🌟 注入刚才严谨定义好的类型
 	const startStateRef = useRef<StartState | null>(null);
 	const [lockSubNodeDrag] = useAtom(lockSubNodeDragAtom);
+	
+	const [rawConfig] = useAtom(aeConfigAtom);
+	const layoutMode = (rawConfig as any).layoutMode || 'horizontal';
 
 	const track = data[trackId];
 	const node = findNode(track, nodeId);
@@ -78,10 +67,22 @@ export default function AENode({ trackId, nodeId, color, stageRef }: AENodeProps
 	const subNodeId = trackId === 'main' ? getCorrespondingNodeId(data.sub, nodeId, data.main) : null;
 	const rubyNodeId = trackId === 'main' ? getCorrespondingNodeId(data.ruby, nodeId, data.main) : null;
 
+	let finalWidth = node.width;
+	let finalHeight = node.height;
+	let content = <Text size="1" weight="bold" style={{ color: 'white', textOverflow: 'ellipsis' }}>{node.text}</Text>;
+
+	// 🌟 仅保留古文竖排逻辑
+	if (layoutMode === 'vertical') {
+		finalWidth = 36;
+		finalHeight = 140;
+		content = <Text size="1" weight="bold" style={{ color: 'white', writingMode: 'vertical-rl', letterSpacing: '4px' }}>{node.text}</Text>;
+	}
+
 	return (
 		<>
 			<div
 				ref={targetRef}
+				className="amll-spatial-node"
 				onPointerDown={(e) => { 
 					e.stopPropagation(); 
 					setActiveTrackId(trackId); 
@@ -89,36 +90,34 @@ export default function AENode({ trackId, nodeId, color, stageRef }: AENodeProps
 				}}
 				style={{
 					position: 'absolute', left: `${node.x}%`, top: `${node.y}%`,
-					width: `${node.width}px`, height: `${node.height}px`,
+					width: `${finalWidth}px`, height: `${finalHeight}px`,
 					transform: `translate(-50%, -50%) rotate(${node.rot}deg)`,
 					backgroundColor: color, 
 					borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', 
-					padding: '0 12px', whiteSpace: 'nowrap', overflow: 'hidden',
+					padding: '0 12px', overflow: 'hidden',
 					border: isActive ? `3px solid white` : `1px solid rgba(255,255,255,0.3)`,
 					boxShadow: isActive ? `0 0 20px ${color}` : `0 4px 6px rgba(0,0,0,0.3)`,
 					zIndex: isActive ? 20 : (trackId === 'main' ? 10 : 5),
 					cursor: isDragLocked ? 'not-allowed' : 'grab'
 				}}
 			>
-				<Text size="1" weight="bold" style={{ color: 'white', textOverflow: 'ellipsis' }}>{node.text}</Text>
+				{content}
 			</div>
 
 			{isActive && stageRef.current && (
 				<Moveable
 					target={targetRef} container={stageRef.current}
-					draggable={!isDragLocked} 
-					resizable={false} 
-					rotatable={!isRotLocked} 
-					origin={false} 
+					draggable={!isDragLocked} resizable={false} rotatable={!isRotLocked} origin={false} 
+					snappable={!isDragLocked} snapCenter={true} snapElement={true} 
+					elementGuidelines={['.amll-spatial-node']} snapThreshold={8} 
+					verticalGuidelines={stageRef.current ? [stageRef.current.clientWidth / 2] : []}
+					horizontalGuidelines={stageRef.current ? [stageRef.current.clientHeight / 2] : []}
 					
 					onDragStart={(e) => {
 						e.set([0, 0]); 
-						
-						// 🌟 修复 noNonNullAssertion：不再用叹号暴力断言，用正规的变量判空
 						const mainNode = findNode(data.main, nodeId);
 						const subNode = subNodeId ? findNode(data.sub, subNodeId) : null;
 						const rubyNode = rubyNodeId ? findNode(data.ruby, rubyNodeId) : null;
-
 						startStateRef.current = {
 							main: mainNode ? { x: Number(mainNode.x), y: Number(mainNode.y) } : null,
 							sub: subNode ? { x: Number(subNode.x), y: Number(subNode.y) } : null,
@@ -126,7 +125,6 @@ export default function AENode({ trackId, nodeId, color, stageRef }: AENodeProps
 						};
 					}}
 					onDrag={(e) => {
-						// 🌟 防御性判断
 						if (!stageRef.current || !startStateRef.current) return;
 						const rect = stageRef.current.getBoundingClientRect();
 						const dx = (e.beforeTranslate[0] / rect.width) * 100;
@@ -134,7 +132,6 @@ export default function AENode({ trackId, nodeId, color, stageRef }: AENodeProps
 						
 						setData(prev => {
 							const next = { ...prev };
-							
 							const selfState = startStateRef.current?.[trackId];
 							if (selfState?.x !== undefined && selfState?.y !== undefined) {
 								const sx = selfState.x;
@@ -162,11 +159,9 @@ export default function AENode({ trackId, nodeId, color, stageRef }: AENodeProps
 					
 					onRotateStart={(e) => {
 						e.set(Number(node.rot)); 
-						
 						const mainNode = findNode(data.main, nodeId);
 						const subNode = subNodeId ? findNode(data.sub, subNodeId) : null;
 						const rubyNode = rubyNodeId ? findNode(data.ruby, rubyNodeId) : null;
-
 						startStateRef.current = {
 							main: mainNode ? { rot: Number(mainNode.rot) } : null,
 							sub: subNode ? { rot: Number(subNode.rot) } : null,
@@ -177,12 +172,10 @@ export default function AENode({ trackId, nodeId, color, stageRef }: AENodeProps
 						if (!startStateRef.current) return;
 						const selfState = startStateRef.current[trackId];
 						if (!selfState || selfState.rot === undefined) return;
-						
 						const dRot = e.beforeRotate - selfState.rot;
 						setData(prev => {
 							const next = { ...prev };
 							next[trackId] = produceTrack(next[trackId], nodeId, n => ({ ...n, rot: Math.round(e.beforeRotate) }));
-							
 							if (trackId === 'main') {
 								const startSub = startStateRef.current?.sub;
 								if (next.sub.bindRot && subNodeId && startSub?.rot !== undefined) {
