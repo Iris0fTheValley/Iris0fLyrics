@@ -61,6 +61,7 @@ export default function AENode({ trackId, nodeId, color, stageRef }: AENodeProps
 	if (!node || !track.visible) return null;
 	const isActive = activeTrackId === trackId && activeNodeId === nodeId;
 
+	// 🌟 判定当前图层是否被锁死：只在联动开启(bindPos) 且 锁定开关打开 时才锁定
 	const isDragLocked = trackId !== 'main' && lockSubNodeDrag && track.bindPos;
 	const isRotLocked = trackId !== 'main' && lockSubNodeDrag && track.bindRot;
 
@@ -71,7 +72,6 @@ export default function AENode({ trackId, nodeId, color, stageRef }: AENodeProps
 	let finalHeight = node.height;
 	let content = <Text size="1" weight="bold" style={{ color: 'white', textOverflow: 'ellipsis' }}>{node.text}</Text>;
 
-	// 🌟 仅保留古文竖排逻辑
 	if (layoutMode === 'vertical') {
 		finalWidth = 36;
 		finalHeight = 140;
@@ -115,14 +115,22 @@ export default function AENode({ trackId, nodeId, color, stageRef }: AENodeProps
 					
 					onDragStart={(e) => {
 						e.set([0, 0]); 
-						const mainNode = findNode(data.main, nodeId);
-						const subNode = subNodeId ? findNode(data.sub, subNodeId) : null;
-						const rubyNode = rubyNodeId ? findNode(data.ruby, rubyNodeId) : null;
-						startStateRef.current = {
-							main: mainNode ? { x: Number(mainNode.x), y: Number(mainNode.y) } : null,
-							sub: subNode ? { x: Number(subNode.x), y: Number(subNode.y) } : null,
-							ruby: rubyNode ? { x: Number(rubyNode.x), y: Number(rubyNode.y) } : null,
-						};
+						// 🌟 终极修复：准确记录当前被拖拽图层自身的起点，解决子轨道被卡死的问题
+						const state: StartState = { main: null, sub: null, ruby: null };
+						state[trackId] = { x: Number(node.x), y: Number(node.y) };
+
+						// 只有当你拖动 main 时，才去额外记录附属轨道的起点
+						if (trackId === 'main') {
+							if (subNodeId) {
+								const sn = findNode(data.sub, subNodeId);
+								if (sn) state.sub = { x: Number(sn.x), y: Number(sn.y) };
+							}
+							if (rubyNodeId) {
+								const rn = findNode(data.ruby, rubyNodeId);
+								if (rn) state.ruby = { x: Number(rn.x), y: Number(rn.y) };
+							}
+						}
+						startStateRef.current = state;
 					}}
 					onDrag={(e) => {
 						if (!stageRef.current || !startStateRef.current) return;
@@ -133,12 +141,14 @@ export default function AENode({ trackId, nodeId, color, stageRef }: AENodeProps
 						setData(prev => {
 							const next = { ...prev };
 							const selfState = startStateRef.current?.[trackId];
+							// 刷新自身位置
 							if (selfState?.x !== undefined && selfState?.y !== undefined) {
 								const sx = selfState.x;
 								const sy = selfState.y;
 								next[trackId] = produceTrack(next[trackId], nodeId, n => ({ ...n, x: sx + dx, y: sy + dy }));
 							}
 							
+							// 如果当前拖拽的是主轨道，则带动已联动的子轨道
 							if (trackId === 'main') {
 								const startSub = startStateRef.current?.sub;
 								if (next.sub.bindPos && subNodeId && startSub?.x !== undefined && startSub?.y !== undefined) {
@@ -159,14 +169,21 @@ export default function AENode({ trackId, nodeId, color, stageRef }: AENodeProps
 					
 					onRotateStart={(e) => {
 						e.set(Number(node.rot)); 
-						const mainNode = findNode(data.main, nodeId);
-						const subNode = subNodeId ? findNode(data.sub, subNodeId) : null;
-						const rubyNode = rubyNodeId ? findNode(data.ruby, rubyNodeId) : null;
-						startStateRef.current = {
-							main: mainNode ? { rot: Number(mainNode.rot) } : null,
-							sub: subNode ? { rot: Number(subNode.rot) } : null,
-							ruby: rubyNode ? { rot: Number(rubyNode.rot) } : null,
-						};
+						// 🌟 终极修复：准确记录自转起点
+						const state: StartState = { main: null, sub: null, ruby: null };
+						state[trackId] = { rot: Number(node.rot) };
+
+						if (trackId === 'main') {
+							if (subNodeId) {
+								const sn = findNode(data.sub, subNodeId);
+								if (sn) state.sub = { rot: Number(sn.rot) };
+							}
+							if (rubyNodeId) {
+								const rn = findNode(data.ruby, rubyNodeId);
+								if (rn) state.ruby = { rot: Number(rn.rot) };
+							}
+						}
+						startStateRef.current = state;
 					}}
 					onRotate={(e) => {
 						if (!startStateRef.current) return;

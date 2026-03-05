@@ -1,22 +1,21 @@
 // 文件路径：src/modules/ae-exporter/components/parts/AENodeToolbar.tsx
-import { useState, useEffect } from 'react';
-import { Box, Card, Flex, Text, TextField, SegmentedControl, Slider, Button, Tooltip } from '@radix-ui/themes';
+import { useState } from 'react';
+import { Box, Card, Flex, Text, TextField, SegmentedControl, Slider, Button, Tooltip, Switch, Popover } from '@radix-ui/themes';
 import { useAtom } from 'jotai';
-import { activeTrackIdAtom, activeNodeIdAtom, spatialDataAtom, type SpatialNode } from '$/states/spatial';
+import { activeTrackIdAtom, activeNodeIdAtom, lockSubNodeDragAtom, spatialDataAtom, type SpatialNode } from '$/states/spatial';
 
 export default function AENodeToolbar() {
 	const [data, setData] = useAtom(spatialDataAtom);
 	const [activeTrackId, setActiveTrackId] = useAtom(activeTrackIdAtom);
 	const [activeNodeId, setActiveNodeId] = useAtom(activeNodeIdAtom); 
+	const [lockSubNodeDrag, setLockSubNodeDrag] = useAtom(lockSubNodeDragAtom); 
 	const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
 
 	const currentTrack = data[activeTrackId];
 	// biome-ignore lint/style/noNonNullAssertion: <explanation>
 	const themeColor = { main: '#7799CC', sub: '#FFDD88', ruby: '#779977' }[activeTrackId]!;
 
-	useEffect(() => {
-		if (activeNodeId) setExpandedNodes(prev => ({ ...prev, [activeNodeId]: true }));
-	}, [activeNodeId]);
+	// 🌟 已删除原本导致“自动展开菜单糊脸”的 useEffect 强行监听代码
 
 	const handleDragStart = (e: React.DragEvent, nodeType: string) => {
 		e.dataTransfer.setData('application/amll-node-type', nodeType);
@@ -38,10 +37,16 @@ export default function AENodeToolbar() {
 			};
 		});
 		setActiveNodeId('focus');
-		setExpandedNodes({ focus: true });
+		setExpandedNodes({}); // 重置时也默认折叠，保持面板清爽
 	};
 
-	// 🌟 修复：智能节点对齐法
+	const mutateTrackProperty = (key: 'bindPos' | 'bindRot', value: boolean) => {
+		setData(prev => ({
+			...prev,
+			[activeTrackId]: { ...prev[activeTrackId], [key]: value }
+		}));
+	};
+
 	const alignToMainTrack = (id: string) => {
 		const mainTrack = data.main;
 		let targetNode: SpatialNode | null = null;
@@ -50,7 +55,6 @@ export default function AENodeToolbar() {
 		else if (id === 'focus') targetNode = mainTrack.focus;
 		else if (id === 'out') targetNode = mainTrack.out;
 		else {
-			// 通过序列号寻找目标！
 			const preIdx = currentTrack.preFocus.findIndex(n => n.id === id);
 			if (preIdx !== -1) targetNode = mainTrack.preFocus[preIdx] || null;
 			
@@ -123,7 +127,6 @@ export default function AENodeToolbar() {
 		const isUsed = nodeData !== null;
 		const isExpanded = isUsed && expandedNodes[id];
 		
-		// 🌟 只有当主轨道上 真正存在 对应的顺位节点时，才显示对齐按钮
 		let canAlign = false;
 		if (activeTrackId !== 'main') {
 			if (id === 'in') canAlign = !!data.main.in;
@@ -161,7 +164,6 @@ export default function AENodeToolbar() {
 						<Flex gap="3" align="center"><Text size="1" color="gray" style={{ width: 30 }}>宽</Text><Slider size="1" min={20} max={600} step={1} value={[Number(nodeData.width)||100]} onValueChange={([v]) => mutateNode(id, 'width', v)} style={{ flex: 1 }} /><TextField.Root size="1" value={nodeData.width} onChange={(e) => mutateNode(id, 'width', e.target.value)} style={{ width: 50 }} /></Flex>
 						<Flex gap="3" align="center"><Text size="1" color="gray" style={{ width: 30 }}>角度</Text><Slider size="1" min={-180} max={180} step={1} value={[Number(nodeData.rot)||0]} onValueChange={([v]) => mutateNode(id, 'rot', v)} style={{ flex: 1 }} /><TextField.Root size="1" value={nodeData.rot} onChange={(e) => mutateNode(id, 'rot', e.target.value)} style={{ width: 50 }} /></Flex>
 						
-						{/* 🌟 一对一吸附按钮 */}
 						{canAlign && (
 							<Button size="1" variant="soft" color="blue" onClick={() => alignToMainTrack(id)}>
 								🧲 吸附对齐主歌词
@@ -178,8 +180,42 @@ export default function AENodeToolbar() {
 			<Box>
 				<Flex justify="between" align="center" mb="2">
 					<Text size="2" weight="bold">🎯 控制轨道</Text>
-					<Button size="1" variant="soft" color="gray" onClick={resetCurrentTrack}>🔄 重置本轨道</Button>
+					
+					{/* 🌟 核心优化：折叠进 Popover，释放面板的垂直空间 */}
+					<Flex gap="2">
+						<Popover.Root>
+							<Popover.Trigger>
+								<Button size="1" variant="soft" color="indigo" style={{ cursor: 'pointer' }}>⚙️ 联动锁</Button>
+							</Popover.Trigger>
+							<Popover.Content width="260px">
+								<Flex direction="column" gap="3">
+									<Text size="2" weight="bold">轨道联动与防呆锁</Text>
+									{activeTrackId !== 'main' && (
+										<>
+											<Flex justify="between" align="center">
+												<Text size="2" color="gray" weight="bold">跟随主轨道移动</Text>
+												<Switch size="1" checked={currentTrack.bindPos} onCheckedChange={(v) => mutateTrackProperty('bindPos', v)} />
+											</Flex>
+											<Flex justify="between" align="center">
+												<Text size="2" color="gray" weight="bold">跟随主轨道旋转</Text>
+												<Switch size="1" checked={currentTrack.bindRot} onCheckedChange={(v) => mutateTrackProperty('bindRot', v)} />
+											</Flex>
+										</>
+									)}
+									<Flex justify="between" align="center">
+										<Tooltip content="打开此锁时，已经开启联动的子轨道将无法在画布中用鼠标直接拖拽，防止误触。">
+											<Text size="2" color="ruby" weight="bold" style={{ cursor: 'help' }}>🔒 锁定子轨道拖拽</Text>
+										</Tooltip>
+										<Switch size="1" color="ruby" checked={lockSubNodeDrag} onCheckedChange={setLockSubNodeDrag} />
+									</Flex>
+								</Flex>
+							</Popover.Content>
+						</Popover.Root>
+
+						<Button size="1" variant="soft" color="gray" onClick={resetCurrentTrack}>🔄 重置</Button>
+					</Flex>
 				</Flex>
+
 				<SegmentedControl.Root value={activeTrackId} onValueChange={(v) => setActiveTrackId(v as 'main'|'sub'|'ruby')} size="2">
 					<SegmentedControl.Item value="main">主歌词</SegmentedControl.Item>
 					<SegmentedControl.Item value="sub">翻译</SegmentedControl.Item>
@@ -187,6 +223,7 @@ export default function AENodeToolbar() {
 				</SegmentedControl.Root>
 			</Box>
 
+			{/* 节点列表阵列 */}
 			<Flex direction="column" gap="4">
 				{renderCard('in', '入场点 (In)', currentTrack.in, 'in')}
 
@@ -194,14 +231,13 @@ export default function AENodeToolbar() {
 					<Flex align="center" justify="between" mb="2">
 						<Flex align="center" gap="2">
 							<Text size="2" weight="bold" color="gray">先焦点 (Pre-Focus)</Text>
-							<Tooltip content="先焦点：尚未播放，从入场处向当前焦点移动的过渡停靠状态（可叠加多个构建复杂漫游路径）">
+							<Tooltip content="尚未播放，从入场处向当前焦点移动的过渡停靠状态">
 								<Text color="gray" style={{ cursor: 'help', fontWeight: 'bold' }}>ⓘ</Text>
 							</Tooltip>
 						</Flex>
 						<Button size="1" variant="soft" color="gray" onClick={() => clickToAdd('preFocus')}>+ 增加</Button>
 					</Flex>
 					<Flex direction="column" gap="2">
-						<Text size="1" color="gray" style={{display: currentTrack.preFocus.length === 0 ? 'block' : 'none'}}>拖拽 + 号或点击以生成...</Text>
 						<div draggable onDragStart={(e) => handleDragStart(e, 'preFocus')} style={{ width:'100%', padding: '8px', border: '1px dashed var(--gray-7)', borderRadius: '6px', textAlign: 'center', cursor: 'grab', display: currentTrack.preFocus.length === 0 ? 'block' : 'none' }}>
 							<Text size="1" color="gray">✋ 拖动我至画布</Text>
 						</div>
@@ -215,14 +251,13 @@ export default function AENodeToolbar() {
 					<Flex align="center" justify="between" mb="2">
 						<Flex align="center" gap="2">
 							<Text size="2" weight="bold" color="gray">次焦点 (Post-Focus)</Text>
-							<Tooltip content="次焦点：已经播放完毕，从当前焦点向离场处移动的过渡停靠状态">
+							<Tooltip content="已经播放完毕，从当前焦点向离场处移动的过渡停靠状态">
 								<Text color="gray" style={{ cursor: 'help', fontWeight: 'bold' }}>ⓘ</Text>
 							</Tooltip>
 						</Flex>
 						<Button size="1" variant="soft" color="gray" onClick={() => clickToAdd('postFocus')}>+ 增加</Button>
 					</Flex>
 					<Flex direction="column" gap="2">
-						<Text size="1" color="gray" style={{display: currentTrack.postFocus.length === 0 ? 'block' : 'none'}}>拖拽 + 号或点击以生成...</Text>
 						<div draggable onDragStart={(e) => handleDragStart(e, 'postFocus')} style={{ width:'100%', padding: '8px', border: '1px dashed var(--gray-7)', borderRadius: '6px', textAlign: 'center', cursor: 'grab', display: currentTrack.postFocus.length === 0 ? 'block' : 'none' }}>
 							<Text size="1" color="gray">✋ 拖动我至画布</Text>
 						</div>
