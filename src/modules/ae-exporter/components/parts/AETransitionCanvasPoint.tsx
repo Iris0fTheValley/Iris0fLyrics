@@ -2,9 +2,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Popover, Flex, Text, Select } from '@radix-ui/themes';
 import { useAtom } from 'jotai';
-import { spatialDataAtom, activeTrackIdAtom, type SpatialNode } from '$/states/spatial';
+import { spatialDataAtom, type SpatialNode } from '$/states/spatial';
 
 interface Props {
+	trackId: 'main' | 'sub' | 'ruby'; // 🌟 核心修复 1：强制传入轨道身份
 	targetNodeId: string;
 	startPos: { x: number; y: number };
 	endPos: { x: number; y: number };
@@ -13,10 +14,9 @@ interface Props {
 	stageRef: React.RefObject<HTMLDivElement | null>;
 }
 
-export default function AETransitionCanvasPoint({ targetNodeId, startPos, endPos, color, isActive, stageRef }: Props) {
+export default function AETransitionCanvasPoint({ trackId, targetNodeId, startPos, endPos, color, isActive, stageRef }: Props) {
 	const [data, setData] = useAtom(spatialDataAtom);
-	const [activeTrackId] = useAtom(activeTrackIdAtom);
-	const track = data[activeTrackId];
+	const track = data[trackId]; // 🌟 核心修复 2：只读取属于自己的轨道数据，拒绝做克隆傀儡！
 
 	let targetNode: SpatialNode | null = null;
 	if (track.focus?.id === targetNodeId) targetNode = track.focus;
@@ -28,7 +28,6 @@ export default function AETransitionCanvasPoint({ targetNodeId, startPos, endPos
 	const [isDragging, setIsDragging] = useState(false);
 	const [localRatio, setLocalRatio] = useState(transition.ratio);
 	
-	// 🌟 手动控制气泡状态与拖拽判定锁
 	const [popoverOpen, setPopoverOpen] = useState(false);
 	const hasDraggedRef = useRef(false);
 
@@ -37,13 +36,48 @@ export default function AETransitionCanvasPoint({ targetNodeId, startPos, endPos
 	const updateTransition = (key: 'type' | 'ratio', value: string | number) => {
 		setData(prev => {
 			const next = { ...prev };
-			const t = { ...next[activeTrackId] };
-			const updateNode = (n: SpatialNode) => n.id === targetNodeId ? { ...n, transition: { ...transition, [key]: value } } : n;
-			if (t.focus) t.focus = updateNode(t.focus);
-			if (t.out) t.out = updateNode(t.out);
-			t.preFocus = t.preFocus.map(updateNode);
-			t.postFocus = t.postFocus.map(updateNode);
-			return { ...next, [activeTrackId]: t };
+			const t = next[trackId];
+			let nodeRole = '';
+			let nodeIndex = -1;
+			
+			if (t.in?.id === targetNodeId) nodeRole = 'in';
+			else if (t.focus?.id === targetNodeId) nodeRole = 'focus';
+			else if (t.out?.id === targetNodeId) nodeRole = 'out';
+			else {
+				nodeIndex = t.preFocus.findIndex(n => n.id === targetNodeId);
+				if (nodeIndex !== -1) nodeRole = 'preFocus';
+				else {
+					nodeIndex = t.postFocus.findIndex(n => n.id === targetNodeId);
+					if (nodeIndex !== -1) nodeRole = 'postFocus';
+				}
+			}
+
+			const applyToTrack = (trackData: any) => {
+				const tr = { ...trackData };
+				const applyToNode = (n: SpatialNode | null) => n ? { ...n, transition: { ...(n.transition || {type:'follow',ratio:50}), [key]: value } } : n;
+				
+				if (nodeRole === 'in' && tr.in) tr.in = applyToNode(tr.in);
+				if (nodeRole === 'focus' && tr.focus) tr.focus = applyToNode(tr.focus);
+				if (nodeRole === 'out' && tr.out) tr.out = applyToNode(tr.out);
+				if (nodeRole === 'preFocus' && tr.preFocus[nodeIndex]) {
+					tr.preFocus = [...tr.preFocus]; 
+					tr.preFocus[nodeIndex] = applyToNode(tr.preFocus[nodeIndex]);
+				}
+				if (nodeRole === 'postFocus' && tr.postFocus[nodeIndex]) {
+					tr.postFocus = [...tr.postFocus]; 
+					tr.postFocus[nodeIndex] = applyToNode(tr.postFocus[nodeIndex]);
+				}
+				return tr;
+			};
+
+			next[trackId] = applyToTrack(next[trackId]);
+
+			// 🌟 核心修复 3：严谨判定 !== false，兼容旧数据的 undefined 状态
+			if (trackId === 'main') {
+				if (next.sub.bindTransition !== false) next.sub = applyToTrack(next.sub);
+				if (next.ruby.bindTransition !== false) next.ruby = applyToTrack(next.ruby);
+			}
+			return next;
 		});
 	};
 
@@ -51,13 +85,13 @@ export default function AETransitionCanvasPoint({ targetNodeId, startPos, endPos
 		if (e.button !== 0 || !isActive) return;
 		e.stopPropagation();
 		e.currentTarget.setPointerCapture(e.pointerId);
-		hasDraggedRef.current = false; // 重置拖拽锁
+		hasDraggedRef.current = false;
 		setIsDragging(true);
 	};
 
 	const handlePointerMove = (e: React.PointerEvent) => {
 		if (!isDragging || !stageRef.current) return;
-		hasDraggedRef.current = true; // 只要移动了，就标记为已拖拽
+		hasDraggedRef.current = true;
 		const rect = stageRef.current.getBoundingClientRect();
 		const mx = ((e.clientX - rect.left) / rect.width) * 100;
 		const my = ((e.clientY - rect.top) / rect.height) * 100;
@@ -79,7 +113,6 @@ export default function AETransitionCanvasPoint({ targetNodeId, startPos, endPos
 		updateTransition('ratio', localRatio);
 	};
 
-	// 🌟 拦截点击事件，如果刚刚发生了拖拽，就阻止气泡打开
 	const handleClick = (e: React.MouseEvent) => {
 		if (hasDraggedRef.current) {
 			e.preventDefault();
@@ -89,7 +122,6 @@ export default function AETransitionCanvasPoint({ targetNodeId, startPos, endPos
 		}
 	};
 
-	// 🌟 核心：只有当模式为 delay（延迟漂移）时，控制点才会出现在画布上
 	if (!isActive || transition.type !== 'delay') return null;
 
 	const px = startPos.x + (endPos.x - startPos.x) * (localRatio / 100);

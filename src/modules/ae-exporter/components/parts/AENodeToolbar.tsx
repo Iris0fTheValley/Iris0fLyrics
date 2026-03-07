@@ -68,8 +68,28 @@ export default function AENodeToolbar() {
 		setExpandedNodes({}); 
 	};
 
-	const mutateTrackProperty = (key: 'bindPos' | 'bindRot', value: boolean) => {
-		setData(prev => ({ ...prev, [activeTrackId]: { ...prev[activeTrackId], [key]: value } }));
+	const mutateTrackProperty = (key: 'bindPos' | 'bindRot' | 'bindTransition', value: boolean) => {
+		setData(prev => {
+			const next = { ...prev };
+			const t = { ...next[activeTrackId], [key]: value };
+			
+			// 🌟 当开启引流阀同步时，立即将主歌词的引流阀状态吸附过来
+			if (key === 'bindTransition' && value === true && activeTrackId !== 'main') {
+				const mainTrack = next.main;
+				const syncTrans = (n: SpatialNode | null, mainN: SpatialNode | null): SpatialNode | null => {
+					if (!n || !mainN) return n;
+					return { ...n, transition: mainN.transition };
+				};
+				t.in = syncTrans(t.in, mainTrack.in);
+				t.focus = syncTrans(t.focus, mainTrack.focus);
+				t.out = syncTrans(t.out, mainTrack.out);
+				t.preFocus = t.preFocus.map((n, i) => syncTrans(n, mainTrack.preFocus[i] || null) || n);
+				t.postFocus = t.postFocus.map((n, i) => syncTrans(n, mainTrack.postFocus[i] || null) || n);
+			}
+			
+			next[activeTrackId] = t;
+			return next;
+		});
 	};
 
 	const alignToMainTrack = (id: string) => {
@@ -89,11 +109,44 @@ export default function AENodeToolbar() {
 		if (!targetNode) return;
 
 		const yOffset = activeTrackId === 'sub' ? 10 : -10; 
-		mutateNode(id, 'x', targetNode.x);
-		mutateNode(id, 'y', Number(targetNode.y) + yOffset);
-		mutateNode(id, 'rot', targetNode.rot);
-		mutateNode(id, 'width', targetNode.width);
-		mutateNode(id, 'height', targetNode.height);
+		setData(prev => {
+			const next = { ...prev };
+			const track = { ...next[activeTrackId] };
+			const updateNode = (n: SpatialNode) => n.id === id ? { ...n, x: targetNode.x, y: Number(targetNode.y) + yOffset, rot: targetNode.rot, width: targetNode.width, height: targetNode.height, transition: targetNode.transition } : n;
+			if (track.in) track.in = updateNode(track.in);
+			if (track.focus) track.focus = updateNode(track.focus);
+			if (track.out) track.out = updateNode(track.out);
+			track.preFocus = track.preFocus.map(updateNode);
+			track.postFocus = track.postFocus.map(updateNode);
+			next[activeTrackId] = track;
+			return next;
+		});
+	};
+
+	// 🌟 新增：全局吸附主轨道 (一键同步所有坐标、角度与引流阀)
+	const syncAllFromMain = () => {
+		setData(prev => {
+			const mainTrack = prev.main;
+			const targetTrack = prev[activeTrackId];
+			const yOffset = activeTrackId === 'sub' ? 10 : -10;
+			
+			const syncNode = (n: SpatialNode | null, mainN: SpatialNode | null): SpatialNode | null => {
+				if (!n || !mainN) return n;
+				return { ...n, x: mainN.x, y: Number(mainN.y) + yOffset, rot: mainN.rot, width: mainN.width, height: mainN.height, transition: mainN.transition };
+			};
+
+			return {
+				...prev,
+				[activeTrackId]: {
+					...targetTrack,
+					in: syncNode(targetTrack.in, mainTrack.in),
+					focus: syncNode(targetTrack.focus, mainTrack.focus),
+					out: syncNode(targetTrack.out, mainTrack.out),
+					preFocus: targetTrack.preFocus.map((n, i) => syncNode(n, mainTrack.preFocus[i] || null) || n),
+					postFocus: targetTrack.postFocus.map((n, i) => syncNode(n, mainTrack.postFocus[i] || null) || n)
+				}
+			};
+		});
 	};
 
 	const mutateNode = (id: string, field: keyof SpatialNode, value: string | number) => {
@@ -339,6 +392,10 @@ export default function AENodeToolbar() {
 												<Text size="2" color="gray" weight="bold">跟随主轨道旋转</Text>
 												<Switch size="1" checked={currentTrack.bindRot} onCheckedChange={(v) => mutateTrackProperty('bindRot', v)} />
 											</Flex>
+											<Flex justify="between" align="center">
+												<Text size="2" color="gray" weight="bold">跟随主引流阀动效</Text>
+												<Switch size="1" checked={currentTrack.bindTransition} onCheckedChange={(v) => mutateTrackProperty('bindTransition', v)} />
+											</Flex>
 										</>
 									)}
 									<Flex justify="between" align="center">
@@ -351,6 +408,9 @@ export default function AENodeToolbar() {
 							</Popover.Content>
 						</Popover.Root>
 
+						{activeTrackId !== 'main' && (
+							<Button size="1" variant="soft" color="blue" style={{ cursor: 'pointer' }} onClick={syncAllFromMain}>🧲 全局吸附</Button>
+						)}
 						<Button size="1" variant="soft" color="gray" style={{ cursor: 'pointer' }} onClick={resetCurrentTrack}>🔄 重置</Button>
 					</Flex>
 				</Flex>

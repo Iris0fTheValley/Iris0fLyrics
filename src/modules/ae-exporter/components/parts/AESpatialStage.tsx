@@ -117,8 +117,9 @@ export default function AESpatialStage() {
 			nodes.push(
 				<AETransitionCanvasPoint 
 					key={`tp-${trackId}-${i}`}
+					trackId={trackId} // 🌟 发放身份牌：明确告诉控制点自己到底是哪条轨道的
 					targetNodeId={endP.id} 
-					startPos={{x: Number(startP.x), y: Number(startP.y)}} 
+					startPos={{x: Number(startP.x), y: Number(startP.y)}}
 					endPos={{x: Number(endP.x), y: Number(endP.y)}}
 					color={color} isActive={isActiveRole} stageRef={stageRef as React.RefObject<HTMLDivElement>}
 				/>

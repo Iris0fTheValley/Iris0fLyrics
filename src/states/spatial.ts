@@ -24,6 +24,7 @@ export interface TrackSpatial {
   visible: boolean;
   bindPos: boolean;
   bindRot: boolean;
+  bindTransition?: boolean; // 🌟 修复：改为可选属性，完美兼容本地旧存档数据
   in: SpatialNode | null;
   preFocus: SpatialNode[];  
   focus: SpatialNode | null; 
@@ -39,7 +40,7 @@ export interface RoleSpatialData {
 }
 
 const emptyTrack = (bindPos: boolean): TrackSpatial => ({
-  visible: true, bindPos, bindRot: bindPos,
+  visible: true, bindPos, bindRot: bindPos, bindTransition: bindPos,
   in: null, preFocus: [], focus: null, postFocus: [], out: null
 });
 
