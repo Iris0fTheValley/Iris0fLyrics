@@ -67,11 +67,14 @@ LRC/ESLyric/YRC/QRC/Lyricify Syllable 等歌词文件格式的导入以及部分
 彻底改变了写死坐标的排版方式，提供一个所见即所得的“物理级”空间画布：
 
 * **多角色资产库与平行轨道系统**：内置完善的角色资产库（支持多文件夹分类管理，每组预设提供独立的独立角色槽位）。在界面一键切换角色后，系统会为其提供“主歌词”、“翻译”和“音译”三大独立物理轨道。配合侧边栏的“全局吸附”与“联动锁”功能，瞬间即可将子轨道的节点、角度及转场规则与主轨道完全对齐，轻松实现复杂的双语错位排版。
+
 <img width="525" height="319" alt="bca4b6c0-ad52-4c0f-8dc7-8d95f16ad350" src="https://github.com/user-attachments/assets/c55e54b3-e4fb-40a4-b0e0-c39add002dc1" /><img width="605" height="402" alt="6c80bd7d-f06a-4962-a8fc-2790df9d24cc" src="https://github.com/user-attachments/assets/0f39c39e-a5be-4780-8927-e6673359095d" />
+
 <img width="2730" height="1351" alt="5768172b-0efb-453e-aaf3-3c9742063499" src="https://github.com/user-attachments/assets/7ada4006-e6e2-4def-afd6-f1a315c26eeb" />
 
 
 * **轨迹魔法 (矩阵变换与克隆)**：在进行多角色合唱编排时无需重复打轴。通过内置的“轨迹魔法”功能，你可以一键提取其他角色的空间排版动线，并进行“1:1 绝对克隆”、“左右/上下对称镜像”或“中心环绕旋转”等矩阵空间变换，瞬间完成极具对称美学与互动感的合唱排版。
+
 <img width="539" height="503" alt="a1d4ea92-d362-4555-bcf8-c25f0394a1fe" src="https://github.com/user-attachments/assets/1d5f3729-2cde-4f67-b6e5-ee6bf0241a86" />
 
 
