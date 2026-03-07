@@ -93,7 +93,7 @@ export default function AESpatialStage() {
 					strokeWidth={isActiveRole ? "2.5" : "1.5"} 
 					strokeDasharray={isActiveRole ? "8 8" : "4 4"} 
 					opacity={isActiveRole ? 1 : 0.6} 
-					className={isActiveRole ? "amll-flowing-line" : ""} 
+					className="amll-flowing-line" 
 				/>
 			);
 		}
