@@ -542,7 +542,15 @@ export const LyricLineView: FC<{
 									{displayNumber}
 								</Text>
 								{line.isBG && <VideoBackgroundEffectFilled color="#4466FF" />}
-								{line.isDuet && <TextAlignRightFilled color="#44AA33" />}
+								{/* 🌟 核心：动态渲染演唱角色小标签 */}
+								{line.role && line.role !== "1" && (
+								<div style={{
+									backgroundColor: { '2': 'var(--orange-9)', '3': 'var(--teal-9)', '4': 'var(--purple-9)', '5': 'var(--pink-9)' }[line.role] || 'var(--gray-9)',
+									color: 'white', fontSize: '10px', fontWeight: 'bold', padding: '2px 4px', borderRadius: '4px', marginTop: '4px', whiteSpace: 'nowrap'
+								}}>
+									角色 {line.role}
+									</div>
+									)}
 							</Flex>
 							<div
 								className={classNames(

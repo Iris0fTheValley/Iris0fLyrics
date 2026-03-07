@@ -133,17 +133,21 @@ export default function exportTTMLText(
 	const hasOtherPerson = !!lyric.find((v) => v.isDuet);
 
 	const metadataEl = doc.createElement("metadata");
-	const mainPersonAgent = doc.createElement("ttm:agent");
-	mainPersonAgent.setAttribute("type", "person");
-	mainPersonAgent.setAttribute("xml:id", "v1");
-	metadataEl.appendChild(mainPersonAgent);
+	
+	// 核心：动态扫描并注册所有参与的角色
+	const uniqueRoles = new Set<string>();
+	uniqueRoles.add("1"); // 保证主唱 1 永远存在
+	for (const line of lyric) if (line.role) uniqueRoles.add(line.role);
 
-	if (hasOtherPerson) {
-		const otherPersonAgent = doc.createElement("ttm:agent");
-		otherPersonAgent.setAttribute("type", "other");
-		otherPersonAgent.setAttribute("xml:id", "v2");
-		metadataEl.appendChild(otherPersonAgent);
-	}
+	Array.from(uniqueRoles).forEach((roleId) => {
+		const agent = doc.createElement("ttm:agent");
+		agent.setAttribute("type", roleId === "1" ? "person" : "other"); // 规范：1为主，其他为辅助
+		agent.setAttribute("xml:id", `role_${roleId}`);
+		const nameEl = doc.createElement("ttm:name");
+		nameEl.appendChild(doc.createTextNode(roleId === "1" ? "主唱" : `角色 ${roleId}`));
+		agent.appendChild(nameEl);
+		metadataEl.appendChild(agent);
+	});
 
 	const songwriterMeta = ttmlLyric.metadata.find(
 		(m) => m.key === "songwriter" && m.value.some((v) => v.trim().length > 0),
@@ -202,7 +206,9 @@ export default function exportTTMLText(
 
 			lineP.setAttribute("begin", msToTimestamp(beginTime));
 			lineP.setAttribute("end", msToTimestamp(endTime));
-			lineP.setAttribute("ttm:agent", line.isDuet ? "v2" : "v1");
+			
+			// 将该句歌词绑定到对应的角色
+			lineP.setAttribute("ttm:agent", `role_${line.role || "1"}`);
 
 			const itunesKey = `L${++i}`;
 			lineP.setAttribute("itunes:key", itunesKey);

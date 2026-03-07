@@ -1,5 +1,5 @@
 // 文件路径：src/modules/ae-exporter/components/parts/AELeftPanel.tsx
-import { Box, Flex, Select, Text, TextField } from '@radix-ui/themes';
+import { Box, Flex, Select, Text, TextField, Slider, Tooltip, Separator } from '@radix-ui/themes';
 import { useAtom } from 'jotai';
 
 import { aeConfigAtom } from '$/states/aeConfig';
@@ -10,7 +10,8 @@ type ExtendedConfig = {
 	visibleDuration?: number;
 	renderThreshold?: number;
 	animDuration?: number;
-	layoutMode?: 'horizontal' | 'vertical'; // 🌟 剔除 diagonal
+	layoutMode?: 'horizontal' | 'vertical'; 
+	previewScale?: number | string; // 🌟 新增：画板外延视野缩放比例 (允许 string 是为了防卡死)
 };
 
 export default function AELeftPanel() {
@@ -26,12 +27,15 @@ export default function AELeftPanel() {
 		setConfig(prev => ({ ...prev, width: w, height: h } as unknown as typeof prev));
 	};
 
+	// 🌟 完美处理清空框内的防卡死逻辑
 	const handleNumChange = (key: string, value: string) => {
+		if (value === '') {
+			updateConfig(key, ''); // 允许为空，避免删不掉最后一个字
+			return;
+		}
 		const parsed = parseFloat(value);
 		if (!Number.isNaN(parsed)) {
 			updateConfig(key, parsed);
-		} else if (value === '') {
-			updateConfig(key, '');
 		}
 	};
 
@@ -77,7 +81,7 @@ export default function AELeftPanel() {
 				<Text size="2" color="gray" mb="1" style={{ display: 'block' }}>⏱️ 动画时长 (秒)</Text>
 				<TextField.Root 
 					type="number" step="0.1" 
-					value={config.animDuration || 0.6} 
+					value={config.animDuration !== undefined ? config.animDuration : 0.6} 
 					onChange={(e) => handleNumChange('animDuration', e.target.value)} 
 				/>
 			</Box>
@@ -86,7 +90,7 @@ export default function AELeftPanel() {
 				<Text size="2" color="gray" mb="1" style={{ display: 'block' }}>👁️ 单行可视存活时间 (秒)</Text>
 				<TextField.Root 
 					type="number" step="0.5" 
-					value={config.visibleDuration || 5.0} 
+					value={config.visibleDuration !== undefined ? config.visibleDuration : 5.0} 
 					onChange={(e) => handleNumChange('visibleDuration', e.target.value)} 
 				/>
 			</Box>
@@ -95,10 +99,43 @@ export default function AELeftPanel() {
 				<Text size="2" color="gray" mb="1" style={{ display: 'block' }}>🔲 视野渲染阈值 (距离中心)</Text>
 				<TextField.Root 
 					type="number" step="100" 
-					value={config.renderThreshold || 2000} 
+					value={config.renderThreshold !== undefined ? config.renderThreshold : 2000} 
 					onChange={(e) => handleNumChange('renderThreshold', e.target.value)} 
 				/>
 			</Box>
+
+			<Separator size="4" mt="2" mb="1" />
+
+			{/* 🌟 核心视觉隔离区：纯本地辅助功能 */}
+			<Tooltip content="调整中间空间画板的外延视野大小。仅用于辅助预览画面外的节点，绝对不会影响最终导出到 AE 里的实际排版位置！">
+				<Box style={{ 
+					backgroundColor: 'var(--blue-2)', 
+					padding: '12px', 
+					borderRadius: '8px', 
+					border: '1px dashed var(--blue-6)',
+					cursor: 'help'
+				}}>
+					<Text size="2" color="blue" mb="2" weight="bold" style={{ display: 'block' }}>
+						🔍 画板外延视野 (仅辅助预览)
+					</Text>
+					<Flex gap="3" align="center">
+						<Slider
+							size="1" min={20} max={100} step={1}
+							value={[typeof config.previewScale === 'number' ? config.previewScale : 85]}
+							onValueChange={([v]) => updateConfig('previewScale', v)}
+							style={{ flex: 1 }}
+						/>
+						<TextField.Root
+							size="1" type="number"
+							value={config.previewScale !== undefined ? config.previewScale : 85}
+							onChange={(e) => handleNumChange('previewScale', e.target.value)}
+							style={{ width: '60px' }}
+						/>
+						<Text size="2" color="gray">%</Text>
+					</Flex>
+				</Box>
+			</Tooltip>
+
 		</Flex>
 	);
 }

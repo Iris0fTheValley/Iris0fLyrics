@@ -17,6 +17,9 @@ import {
 	RadioGroup,
 	Text,
 	TextField,
+	Popover,
+	Box,
+	Select,
 } from "@radix-ui/themes";
 import { atom, useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { useSetImmerAtom } from "jotai-immer";
@@ -46,6 +49,9 @@ import {
 	selectedLinesAtom,
 	selectedWordsAtom,
 } from "$/states/main.ts";
+import { roleSystemAtom } from "$/states/spatial.ts"; // 🌟 改为引入大系统库
+import { useCursorInjection } from "$/hooks/useCursorInjection";
+import { roleNamesAtom, roleCountAtom } from "$/states/spatial.ts";
 import { type LyricLine, type LyricWord, newLyricLine } from "$/types/ttml";
 import { msToTimestamp, parseTimespan } from "$/utils/timestamp.ts";
 import { RibbonFrame, RibbonSection } from "./common";
@@ -543,6 +549,141 @@ const AuxiliaryDisplayField: FC = () => {
 	);
 };
 
+const RoleAssetManager: FC = () => {
+	const [system, setSystem] = useAtom(roleSystemAtom);
+	const { insertAtCursor } = useCursorInjection();
+	const [tempCount, setTempCount] = useState(system.slotCount.toString());
+
+	const activeFolder = system.folders.find(f => f.id === system.activeFolderId) || system.folders[0];
+
+	const handleCountChange = (val: string) => {
+		setTempCount(val);
+		const num = parseInt(val, 10);
+		if (isNaN(num)) return;
+		if (num > 20) {
+			if (window.confirm(`⚠️ 确定要启用 ${num} 个角色吗？过多的轨道可能导致 AE 渲染极其卡顿！`)) {
+				setSystem(s => ({ ...s, slotCount: num }));
+			} else {
+				setTempCount(system.slotCount.toString());
+			}
+		} else if (num >= 2) {
+			setSystem(s => ({ ...s, slotCount: num }));
+		}
+	};
+
+	const handleCountBlur = () => {
+		const num = parseInt(tempCount, 10);
+		if (isNaN(num) || num < 2) {
+			setTempCount(Math.max(2, system.slotCount).toString());
+			if (num < 2) setSystem(s => ({ ...s, slotCount: 2 }));
+		}
+	};
+
+	const handleAddFolder = () => {
+		const name = window.prompt("输入新企划(分类)名称：", "新企划");
+		if (!name) return;
+		const newId = Date.now().toString();
+		setSystem(s => ({
+			...s,
+			folders: [...s.folders, { id: newId, name, roles: [] }],
+			activeFolderId: newId
+		}));
+	};
+
+	const handleRenameFolder = () => {
+		const name = window.prompt("重命名当前企划：", activeFolder.name);
+		if (!name) return;
+		setSystem(s => ({
+			...s,
+			folders: s.folders.map(f => f.id === s.activeFolderId ? { ...f, name } : f)
+		}));
+	};
+
+	const handleDeleteFolder = () => {
+		if (system.folders.length <= 1) return window.alert("至少需要保留一个企划分类！");
+		if (window.confirm(`确定要删除企划 "${activeFolder.name}" 吗？此操作不可逆。`)) {
+			setSystem(s => {
+				const remaining = s.folders.filter(f => f.id !== s.activeFolderId);
+				return { ...s, folders: remaining, activeFolderId: remaining[0].id };
+			});
+		}
+	};
+
+	const updateRoleName = (idx: number, val: string) => {
+		setSystem(s => {
+			const fIdx = s.folders.findIndex(f => f.id === s.activeFolderId);
+			if (fIdx === -1) return s;
+			
+			const newFolders = [...s.folders]; // 1. 生成全新文件夹数组引用
+			const newRoles = [...newFolders[fIdx].roles]; // 2. 生成全新名字数组引用
+			newRoles[idx] = val;
+			
+			newFolders[fIdx] = { ...newFolders[fIdx], roles: newRoles }; // 3. 组装
+			return { ...s, folders: newFolders }; // 4. 触发极速刷新
+		});
+	};
+	const roleIds = Array.from({ length: system.slotCount }, (_, i) => String(i + 1));
+
+	return (
+		<Flex direction="column" gap="3" style={{ width: '310px' }}>
+			<Text size="2" weight="bold">自定义演唱角色资产库</Text>
+			
+			{/* 文件夹管理区 */}
+			<Flex align="center" gap="2" style={{ backgroundColor: 'var(--gray-3)', padding: '6px', borderRadius: '6px' }}>
+				<Select.Root size="1" value={system.activeFolderId} onValueChange={(val) => setSystem(s => ({...s, activeFolderId: val}))}>
+					<Select.Trigger style={{ flex: 1 }} />
+					<Select.Content>
+						{system.folders.map(f => <Select.Item key={f.id} value={f.id}>{f.name}</Select.Item>)}
+					</Select.Content>
+				</Select.Root>
+				<Button size="1" variant="soft" onClick={handleAddFolder} title="新建企划分类">+</Button>
+				<Button size="1" variant="soft" color="orange" onClick={handleRenameFolder} title="重命名">✏️</Button>
+				<Button size="1" variant="soft" color="red" onClick={handleDeleteFolder} title="删除">🗑️</Button>
+			</Flex>
+
+			{/* 数量控制器 */}
+			<Flex align="center" justify="between" style={{ backgroundColor: 'var(--gray-2)', padding: '6px', borderRadius: '6px' }}>
+				<Text size="1" color="gray">当前激活轨道数量</Text>
+				<TextField.Root
+					size="1" type="number" min="2"
+					value={tempCount}
+					onChange={(e) => handleCountChange(e.target.value)}
+					onBlur={handleCountBlur}
+					style={{ width: '60px' }}
+				/>
+			</Flex>
+
+			{/* 动态滚动表单区 */}
+			<div style={{ maxHeight: '260px', overflowY: 'auto', paddingRight: '8px' }}>
+				<Flex direction="column" gap="2">
+					{roleIds.map((roleId, index) => {
+						const currentName = activeFolder.roles[index] || '';
+						return (
+							<Flex key={roleId} align="center" gap="2">
+								<Box style={{ width: '8px', height: '8px', minWidth: '8px', borderRadius: '50%', backgroundColor: roleId === '1' ? 'var(--blue-9)' : 'var(--orange-9)' }} />
+								<Text size="1" color="gray" style={{ width: '45px' }}>角色 {roleId}</Text>
+								<TextField.Root
+									size="1"
+									value={currentName}
+									onChange={(e) => updateRoleName(index, e.target.value)}
+									placeholder={roleId === '1' ? '主唱' : `角色 ${roleId}`}
+									style={{ flex: 1 }}
+								/>
+								{/* 🌟 核心：一键插入光标按钮 */}
+								<Button size="1" variant="ghost" color="indigo" style={{ cursor: 'pointer', padding: '0 6px' }} title="一键插入名字到编辑光标处" onClick={() => {
+									if (currentName) insertAtCursor(currentName);
+								}}>
+									↙️
+								</Button>
+							</Flex>
+						);
+					})}
+				</Flex>
+			</div>
+		</Flex>
+	);
+};
+
 export const EditModeRibbonBar: FC = forwardRef<HTMLDivElement>(
 	(_props, ref) => {
 		const editLyricLines = useSetImmerAtom(lyricLinesAtom);
@@ -589,12 +730,8 @@ export const EditModeRibbonBar: FC = forwardRef<HTMLDivElement>(
 							isWordField={false}
 							fieldName="isBG"
 						/>
-						<CheckboxField
-							label={t("ribbonBar.editMode.duetLyric", "对唱歌词")}
-							isWordField={false}
-							fieldName="isDuet"
-							defaultValue={false}
-						/>
+						
+					
 						<CheckboxField
 							label={t("ribbonBar.editMode.ignoreSync", "忽略打轴")}
 							isWordField={false}
@@ -694,6 +831,23 @@ export const EditModeRibbonBar: FC = forwardRef<HTMLDivElement>(
 				>
 					<AuxiliaryDisplayField />
 				</RibbonSection>
+
+				{/* 🌟 新增：高级角色名管理面板 (气泡悬浮窗) */}
+				<RibbonSection label="角色管理">
+					<Grid columns="1" gap="1" flexGrow="1" align="center">
+						<Popover.Root>
+							<Popover.Trigger>
+								<Button size="1" variant="soft" color="indigo" style={{ cursor: 'pointer' }}>
+									👥 角色库
+								</Button>
+							</Popover.Trigger>
+							<Popover.Content>
+								<RoleAssetManager />
+							</Popover.Content>
+						</Popover.Root>
+					</Grid>
+				</RibbonSection>
+
 			</RibbonFrame>
 		);
 	},

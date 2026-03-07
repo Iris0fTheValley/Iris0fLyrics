@@ -47,7 +47,7 @@ export default function AEModePanel() {
 					gap="4" align="stretch" 
 					// 🌟 核心魔法：高度设定为屏幕高度减去边距 (calc(100vh - 40px))，
 					// 这样用户滚到这里时，它会完美霸占整个屏幕视野，给画板最大的操作空间！
-					style={{ width: '100%', maxWidth: '1900px', height: 'calc(82vh - 40px)', minHeight: '800px', marginBottom: '50px' }}
+					style={{ width: '100%', maxWidth: '2100px', height: 'calc(82vh - 40px)', minHeight: '800px', marginBottom: '50px' }}
 				>
 					
 					{/* 左：核心动效参数 (内部独立滚动) */}
@@ -57,7 +57,7 @@ export default function AEModePanel() {
 					</Box>
 
 					{/* 中：战区画板 (完全撑满当前区域) */}
-					<Box style={{ flex: 1, backgroundColor: 'var(--gray-3)', borderRadius: '8px', border: '1px solid var(--gray-6)', padding: '16px', display: 'flex', flexDirection: 'column' }}>
+					<Box style={{ flex: 1, backgroundColor: 'var(--gray-3)', borderRadius: '8px', border: '1px solid var(--gray-6)', padding: '7px', display: 'flex', flexDirection: 'column' }}>
 						<AESpatialStage />
 					</Box>
 

@@ -9,6 +9,7 @@
  * https://github.com/Steve-xmh/amll-ttml-tool/blob/main/LICENSE
  */
 
+// 文件路径：src/types/ttml.ts
 import type {
 	LyricLine as AMLLLyricLine,
 	LyricWord as AMLLLyricWord,
@@ -27,7 +28,6 @@ export interface TTMLLyric {
 }
 
 export interface LyricWord extends AMLLLyricWord {
-	// 用来确定唯一一个单词的标识符，导出时不会保存
 	id: string;
 	obscene: boolean;
 	emptyBeat: number;
@@ -45,16 +45,11 @@ export const newLyricWord = (): LyricWord => ({
 });
 
 export interface LyricLine extends AMLLLyricLine {
-	// 用来确定唯一一个行的标识符，导出时不会保存
 	id: string;
 	words: LyricWord[];
-	// translatedLyric: string;
-	// romanLyric: string;
-	// isBG: boolean;
-	// isDuet: boolean;
-	// startTime: number;
-	// endTime: number;
 	ignoreSync: boolean;
+	// 🌟 新增：多角色系统标识符，告诉系统这句词是谁唱的
+	role: string; 
 }
 
 export const newLyricLine = (): LyricLine => ({
@@ -63,8 +58,10 @@ export const newLyricLine = (): LyricLine => ({
 	translatedLyric: "",
 	romanLyric: "",
 	isBG: false,
-	isDuet: false,
+	isDuet: false, // 保留是为了旧文件解析不报错
 	startTime: 0,
 	endTime: 0,
 	ignoreSync: false,
+	// 🌟 默认将新创建的歌词行分配给角色 1
+	role: "1", 
 });

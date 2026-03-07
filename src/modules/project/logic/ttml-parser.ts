@@ -264,16 +264,24 @@ export function parseLyric(ttmlText: string): TTMLLyric {
 			parsedEndTime = parseTimespan(endTimeAttr);
 		}
 
+		// 核心：解析多角色标签，完美兼容老版本的 isDuet 和 ttm:agent
+		const rawAgent = lineEl.getAttribute("ttm:agent");
+		let parsedRole = "1";
+		if (rawAgent) {
+			if (rawAgent === "v2" || rawAgent !== mainAgentId) parsedRole = "2"; // 兼容老版本
+			if (rawAgent.startsWith("role_")) parsedRole = rawAgent.replace("role_", ""); // 兼容我们未来的新标准
+		} else if (isDuet) {
+			parsedRole = "2";
+		}
+
 		const line: LyricLine = {
 			id: uid(),
 			words: [],
 			translatedLyric: "",
 			romanLyric: "",
 			isBG,
-			isDuet: isBG
-				? isDuet
-				: !!lineEl.getAttribute("ttm:agent") &&
-					lineEl.getAttribute("ttm:agent") !== mainAgentId,
+			isDuet: parsedRole !== "1", // 同步旧属性，防止其他依赖报错
+			role: parsedRole, // 🌟 注入角色维度
 			startTime: parsedStartTime,
 			endTime: parsedEndTime,
 			ignoreSync: false,

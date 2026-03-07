@@ -1,21 +1,50 @@
 // 文件路径：src/modules/ae-exporter/components/parts/AENodeToolbar.tsx
-import { useState } from 'react';
-import { Box, Card, Flex, Text, TextField, SegmentedControl, Slider, Button, Tooltip, Switch, Popover } from '@radix-ui/themes';
-import { useAtom } from 'jotai';
-import { activeTrackIdAtom, activeNodeIdAtom, lockSubNodeDragAtom, spatialDataAtom, type SpatialNode } from '$/states/spatial';
+import { useState, useEffect } from 'react';
+import { Box, Card, Flex, Text, TextField, SegmentedControl, Slider, Button, Tooltip, Switch, Popover, Select } from '@radix-ui/themes';
+import { useAtom, useAtomValue } from 'jotai';
+import { activeTrackIdAtom, activeNodeIdAtom, lockSubNodeDragAtom, spatialDataAtom, spatialDataMapAtom, activeRoleIdAtom, roleSystemAtom, type SpatialNode, type TrackSpatial } from '$/states/spatial';
+
+export const getRoleColors = (roleId: string) => {
+	const palettes: Record<string, { main: string; sub: string; ruby: string }> = {
+		'1': { main: '#7799CC', sub: '#FFDD88', ruby: '#779977' }, 
+		'2': { main: '#CC7799', sub: '#B288FF', ruby: '#DD9977' }, 
+		'3': { main: '#77CCAA', sub: '#FF88AA', ruby: '#9977CC' }, 
+		'4': { main: '#CCAA77', sub: '#88CCFF', ruby: '#777799' }, 
+		'5': { main: '#99CC77', sub: '#FFB288', ruby: '#CC7777' }, 
+	};
+	const key = String(((parseInt(roleId, 10) - 1) % 5) + 1);
+	return palettes[key] || palettes['1'];
+};
 
 export default function AENodeToolbar() {
 	const [data, setData] = useAtom(spatialDataAtom);
+	const dataMap = useAtomValue(spatialDataMapAtom); // 🌟 引入大字典，用于读取其他人的数据
+
 	const [activeTrackId, setActiveTrackId] = useAtom(activeTrackIdAtom);
 	const [activeNodeId, setActiveNodeId] = useAtom(activeNodeIdAtom); 
 	const [lockSubNodeDrag, setLockSubNodeDrag] = useAtom(lockSubNodeDragAtom); 
+	
+	const [activeRoleId] = useAtom(activeRoleIdAtom);
+	const roleSystem = useAtomValue(roleSystemAtom);
+	const roleIds = Array.from({ length: roleSystem.slotCount }, (_, i) => String(i + 1));
+	const activeFolder = roleSystem.folders.find(f => f.id === roleSystem.activeFolderId) || roleSystem.folders[0];
+
 	const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
+	
+	// 🌟 魔法阵专属状态
+	const [magicSourceRole, setMagicSourceRole] = useState<string>('1');
+	const [globalRot, setGlobalRot] = useState<number>(180);
 
 	const currentTrack = data[activeTrackId];
-	// biome-ignore lint/style/noNonNullAssertion: <explanation>
-	const themeColor = { main: '#7799CC', sub: '#FFDD88', ruby: '#779977' }[activeTrackId]!;
+	const themeColor = getRoleColors(activeRoleId)[activeTrackId];
 
-	// 🌟 已删除原本导致“自动展开菜单糊脸”的 useEffect 强行监听代码
+	// 当切换画板时，智能避开自己作为魔法数据源
+	useEffect(() => {
+		if (magicSourceRole === activeRoleId) {
+			const nextRole = roleIds.find(id => id !== activeRoleId) || '1';
+			setMagicSourceRole(nextRole);
+		}
+	}, [activeRoleId, roleIds, magicSourceRole]);
 
 	const handleDragStart = (e: React.DragEvent, nodeType: string) => {
 		e.dataTransfer.setData('application/amll-node-type', nodeType);
@@ -37,14 +66,11 @@ export default function AENodeToolbar() {
 			};
 		});
 		setActiveNodeId('focus');
-		setExpandedNodes({}); // 重置时也默认折叠，保持面板清爽
+		setExpandedNodes({}); 
 	};
 
 	const mutateTrackProperty = (key: 'bindPos' | 'bindRot', value: boolean) => {
-		setData(prev => ({
-			...prev,
-			[activeTrackId]: { ...prev[activeTrackId], [key]: value }
-		}));
+		setData(prev => ({ ...prev, [activeTrackId]: { ...prev[activeTrackId], [key]: value } }));
 	};
 
 	const alignToMainTrack = (id: string) => {
@@ -57,7 +83,6 @@ export default function AENodeToolbar() {
 		else {
 			const preIdx = currentTrack.preFocus.findIndex(n => n.id === id);
 			if (preIdx !== -1) targetNode = mainTrack.preFocus[preIdx] || null;
-			
 			const postIdx = currentTrack.postFocus.findIndex(n => n.id === id);
 			if (postIdx !== -1) targetNode = mainTrack.postFocus[postIdx] || null;
 		}
@@ -123,6 +148,63 @@ export default function AENodeToolbar() {
 		setActiveNodeId(id);
 	};
 
+	// 🌟 核心魔法引擎：矩阵运算
+	const applyMagic = (magicType: 'clone' | 'mirrorX' | 'mirrorY' | 'rotate') => {
+		const sourceData = dataMap[magicSourceRole];
+		if (!sourceData) return;
+
+		const sName = activeFolder.roles[parseInt(magicSourceRole, 10)-1] || `角色 ${magicSourceRole}`;
+		if (!window.confirm(`⚠️ 将提取 [${sName}] 的轨迹数据并应用魔法。\n这将会覆盖当前画板所有现有轨迹！确定吗？`)) return;
+
+		const processNode = (node: SpatialNode | null): SpatialNode | null => {
+			if (!node) return null;
+			let newX = Number(node.x);
+			let newY = Number(node.y);
+			let newRot = Number(node.rot);
+
+			if (magicType === 'mirrorX') {
+				newX = 100 - newX;
+				newRot = -newRot;
+			} else if (magicType === 'mirrorY') {
+				newY = 100 - newY;
+				newRot = -newRot;
+			} else if (magicType === 'rotate') {
+				const rad = globalRot * (Math.PI / 180);
+				const cos = Math.cos(rad);
+				const sin = Math.sin(rad);
+				const dx = newX - 50;
+				const dy = newY - 50;
+				
+				newX = 50 + (dx * cos - dy * sin);
+				newY = 50 + (dx * sin + dy * cos);
+				newRot = newRot + globalRot;
+			}
+
+			// 保留两位小数，防止无限循环的小数点导致 UI 卡顿
+			return { 
+				...node, 
+				x: Math.round(newX * 100) / 100, 
+				y: Math.round(newY * 100) / 100, 
+				rot: Math.round(newRot * 100) / 100 
+			};
+		};
+
+		const processTrack = (track: TrackSpatial): TrackSpatial => ({
+			...track,
+			in: processNode(track.in),
+			preFocus: track.preFocus.map(processNode) as SpatialNode[],
+			focus: processNode(track.focus),
+			postFocus: track.postFocus.map(processNode) as SpatialNode[],
+			out: processNode(track.out),
+		});
+
+		setData({
+			main: processTrack(sourceData.main),
+			sub: processTrack(sourceData.sub),
+			ruby: processTrack(sourceData.ruby),
+		});
+	};
+
 	const renderCard = (id: string, label: string, nodeData: SpatialNode | null, dragType: string) => {
 		const isUsed = nodeData !== null;
 		const isExpanded = isUsed && expandedNodes[id];
@@ -179,10 +261,56 @@ export default function AENodeToolbar() {
 		<Flex direction="column" gap="4">
 			<Box>
 				<Flex justify="between" align="center" mb="2">
-					<Text size="2" weight="bold">🎯 控制轨道</Text>
+					<Text size="2" weight="bold" style={{ color: themeColor }}>🎯 编排: {activeFolder.roles[parseInt(activeRoleId)-1] || `角色 ${activeRoleId}`}</Text>
 					
-					{/* 🌟 核心优化：折叠进 Popover，释放面板的垂直空间 */}
 					<Flex gap="2">
+						{/* 🌟 核心：极其震撼的矩阵变换魔法阵 */}
+						<Popover.Root>
+							<Popover.Trigger>
+								<Button size="1" variant="soft" color="violet" style={{ cursor: 'pointer' }}>🪄 轨迹魔法</Button>
+							</Popover.Trigger>
+							<Popover.Content width="260px">
+								<Flex direction="column" gap="3">
+									<Text size="2" weight="bold">🪄 轨迹克隆与矩阵变换</Text>
+									<Text size="1" color="gray">提取其他角色的空间排版，进行矩阵变换后覆盖当前画板。</Text>
+									
+									<Flex align="center" gap="2" style={{ backgroundColor: 'var(--gray-3)', padding: '6px', borderRadius: '6px' }}>
+										<Text size="1" color="gray">源数据:</Text>
+										<Select.Root value={magicSourceRole} onValueChange={setMagicSourceRole} size="1">
+											<Select.Trigger style={{ flex: 1 }} />
+											<Select.Content>
+												{roleIds.map(id => (
+													<Select.Item key={id} value={id} disabled={id === activeRoleId}>
+														{activeFolder.roles[parseInt(id, 10)-1] || `角色 ${id}`}
+													</Select.Item>
+												))}
+											</Select.Content>
+										</Select.Root>
+									</Flex>
+
+									<Flex direction="column" gap="2" mt="1">
+										<Button size="1" variant="soft" color="blue" style={{ cursor: 'pointer' }} onClick={() => applyMagic('clone')}>
+											📄 1:1 绝对克隆 (Copy)
+										</Button>
+										<Button size="1" variant="soft" color="orange" style={{ cursor: 'pointer' }} onClick={() => applyMagic('mirrorX')}>
+											↔️ 左右对称镜像 (Flip X)
+										</Button>
+										<Button size="1" variant="soft" color="green" style={{ cursor: 'pointer' }} onClick={() => applyMagic('mirrorY')}>
+											↕️ 上下对称镜像 (Flip Y)
+										</Button>
+										
+										<Flex align="center" gap="2" mt="1">
+											<Button size="1" variant="soft" color="violet" style={{ flex: 1, cursor: 'pointer' }} onClick={() => applyMagic('rotate')}>
+												🔄 中心环绕旋转
+											</Button>
+											<TextField.Root size="1" type="number" style={{ width: '60px' }} value={globalRot} onChange={e => setGlobalRot(Number(e.target.value) || 0)} />
+											<Text size="1" color="gray">度</Text>
+										</Flex>
+									</Flex>
+								</Flex>
+							</Popover.Content>
+						</Popover.Root>
+
 						<Popover.Root>
 							<Popover.Trigger>
 								<Button size="1" variant="soft" color="indigo" style={{ cursor: 'pointer' }}>⚙️ 联动锁</Button>
@@ -212,7 +340,7 @@ export default function AENodeToolbar() {
 							</Popover.Content>
 						</Popover.Root>
 
-						<Button size="1" variant="soft" color="gray" onClick={resetCurrentTrack}>🔄 重置</Button>
+						<Button size="1" variant="soft" color="gray" style={{ cursor: 'pointer' }} onClick={resetCurrentTrack}>🔄 重置</Button>
 					</Flex>
 				</Flex>
 
@@ -235,7 +363,7 @@ export default function AENodeToolbar() {
 								<Text color="gray" style={{ cursor: 'help', fontWeight: 'bold' }}>ⓘ</Text>
 							</Tooltip>
 						</Flex>
-						<Button size="1" variant="soft" color="gray" onClick={() => clickToAdd('preFocus')}>+ 增加</Button>
+						<Button size="1" variant="soft" color="gray" style={{ cursor: 'pointer' }} onClick={() => clickToAdd('preFocus')}>+ 增加</Button>
 					</Flex>
 					<Flex direction="column" gap="2">
 						<div draggable onDragStart={(e) => handleDragStart(e, 'preFocus')} style={{ width:'100%', padding: '8px', border: '1px dashed var(--gray-7)', borderRadius: '6px', textAlign: 'center', cursor: 'grab', display: currentTrack.preFocus.length === 0 ? 'block' : 'none' }}>
@@ -255,7 +383,7 @@ export default function AENodeToolbar() {
 								<Text color="gray" style={{ cursor: 'help', fontWeight: 'bold' }}>ⓘ</Text>
 							</Tooltip>
 						</Flex>
-						<Button size="1" variant="soft" color="gray" onClick={() => clickToAdd('postFocus')}>+ 增加</Button>
+						<Button size="1" variant="soft" color="gray" style={{ cursor: 'pointer' }} onClick={() => clickToAdd('postFocus')}>+ 增加</Button>
 					</Flex>
 					<Flex direction="column" gap="2">
 						<div draggable onDragStart={(e) => handleDragStart(e, 'postFocus')} style={{ width:'100%', padding: '8px', border: '1px dashed var(--gray-7)', borderRadius: '6px', textAlign: 'center', cursor: 'grab', display: currentTrack.postFocus.length === 0 ? 'block' : 'none' }}>

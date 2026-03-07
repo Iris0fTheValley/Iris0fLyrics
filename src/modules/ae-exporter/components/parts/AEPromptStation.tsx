@@ -7,7 +7,7 @@ import { toast } from 'react-toastify';
 import { aeConfigAtom } from '$/states/aeConfig';
 import { selectedAETemplateIdAtom, aeTemplatesAtom, spatialNodeTemplate } from '$/states/aeTemplates';
 import { lyricLinesAtom } from '$/states/main';
-import { spatialDataAtom } from '$/states/spatial';
+import { spatialDataMapAtom } from '$/states/spatial'; // 🌟 核心：引入多宇宙大字典
 
 type ExtendedConfig = {
 	fontFamily?: string;
@@ -31,11 +31,8 @@ export default function AEPromptStation(_props: AEPromptStationProps) {
 	const [templates] = useAtom(aeTemplatesAtom);
 	const [selectedId] = useAtom(selectedAETemplateIdAtom);
 
-	// 分离提示词
 	const [motionPrompt, setMotionPrompt] = useState('请帮我加上苹果发布会那种丝滑的缓入缓出贝塞尔曲线动效。');
 	const [effectPrompt, setEffectPrompt] = useState('距离中心超过 1000 的歌词加上高斯模糊，其余无特效。');
-	
-	// 🌟 新增：承接 AI 吐出的插件代码
 	const [aiGeneratedCode, setAiGeneratedCode] = useState('');
 
 	const updateConfig = (key: string, value: any) => {
@@ -43,7 +40,6 @@ export default function AEPromptStation(_props: AEPromptStationProps) {
 	};
 
 	const handleCopyPrompt = () => {
-		// 🌟 我们只给 AI 最纯粹的 API 规范，绝对不给底层上万字的图层数据，彻底解决大模型长度幻觉问题！
 		const apiDocPrompt = `你是一个世界顶级的 After Effects JSX 脚本特效专家。
 我有一个已经在底层计算好所有绝对坐标与时间轴的歌词排版引擎。
 请你帮我编写两个**独立的插件函数**，来实现我想要的动效与特效。
@@ -74,7 +70,6 @@ ${effectPrompt || '无需特效。'}
 		toast.success('🎉 AI 提示词与插件 API 规范已复制！请直接发给 ChatGPT/Claude！');
 	};
 
-	// 🌟 全新的生成导出逻辑：组装底座 + AI 插件
 	const handleExportWithAI = () => {
 		const currentTemplate = templates.find((tpl) => tpl.id === selectedId) || templates[0];
 		if (currentTemplate.id !== spatialNodeTemplate.id) {
@@ -83,11 +78,10 @@ ${effectPrompt || '无需特效。'}
 
 		try {
 			const ttmlData = store.get(lyricLinesAtom);
-			const spatialData = store.get(spatialDataAtom);
+			const spatialMapData = store.get(spatialDataMapAtom); // 🌟 获取全局平行宇宙数据
 			const lines = ttmlData.lyricLines;
 			if (!lines || lines.length === 0) { toast.error('导出失败：没有可用的歌词数据！'); return; }
 
-			// 计算字宽...
 			let maxTime = 0;
 			const calculateWidth = (text: string, fontSize: number) => {
 				let width = 0;
@@ -128,12 +122,13 @@ ${effectPrompt || '无需特效。'}
 					const parsed = parseMixedText(line.translatedLyric, '#FFFFFF', config.subFontSize || 40);
 					parsed.forEach((p) => { sub_words.push({ text: p.text, color: p.color, start: line.startTime / 1000, width: p.width }); });
 				}
-				return { start: line.startTime / 1000, end: line.endTime / 1000, main_words, sub_words };
+				// 🌟 注入角色的基因标识，告诉 AE 这句话该去哪个画板读数据
+				return { start: line.startTime / 1000, end: line.endTime / 1000, main_words, sub_words, role: line.role || '1' };
 			});
 
-			const finalData = { maxTime, lines: parsedLines, spatial: spatialData };
+			// 🌟 将 spatialMap 作为全局资产包发送给 AE 脚本引擎
+			const finalData = { maxTime, lines: parsedLines, spatialMap: spatialMapData };
 			
-			// 🌟 核心：将用户粘贴的 AI 代码通过 options.aiCode 传给模板进行拼装！
 			const executor = new Function('data', 'options', `${currentTemplate.code}\nreturn buildAMLLScript(data, options);`);
 			const jsxContent = executor(finalData, { enableEffects: true, config, aiCode: aiGeneratedCode });
 
@@ -141,14 +136,13 @@ ${effectPrompt || '无需特效。'}
 			const url = URL.createObjectURL(blob);
 			const a = document.createElement('a'); a.href = url; a.download = `AMLL_AIPowered_${Date.now()}.jsx`;
 			document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-			toast.success('🎉 融合了 AI 插件的完整 JSX 脚本已生成！');
+			toast.success('🎉 融合了多角色宇宙与 AI 插件的完整 JSX 脚本已生成！');
 		} catch (error) { toast.error('模板执行失败: ' + (error instanceof Error ? error.message : String(error))); }
 	};
 
 	return (
 		<Flex direction="column" gap="4">
 			<Grid columns="300px 1fr" gap="4">
-				{/* 字体外观设置 */}
 				<Card size="2" variant="surface">
 					<Flex direction="column" gap="4">
 						<Text weight="bold" size="3" mb="2"> 字体外观硬编码</Text>
@@ -167,7 +161,6 @@ ${effectPrompt || '无需特效。'}
 					</Flex>
 				</Card>
 
-				{/* 提示词生成器 */}
 				<Card size="2" variant="surface" style={{ backgroundColor: 'var(--indigo-2)', border: '1px solid var(--indigo-6)' }}>
 					<Flex direction="column" gap="3" height="100%">
 						<Text weight="bold" size="3" color="indigo"> 第一步：给大模型的提示词</Text>
@@ -186,7 +179,6 @@ ${effectPrompt || '无需特效。'}
 				</Card>
 			</Grid>
 
-			{/* 🌟 AI 代码回填与导出区 */}
 			<Card size="2" variant="surface" style={{ backgroundColor: 'var(--jade-2)', border: '1px solid var(--jade-6)' }}>
 				<Flex direction="column" gap="3">
 					<Text weight="bold" size="3" color="jade">⚡ 第二步：粘贴 AI 生成的代码并合成导出</Text>
@@ -198,7 +190,7 @@ ${effectPrompt || '无需特效。'}
 						style={{ height: '150px', fontFamily: 'monospace' }}
 					/>
 					<Button size="3" color="jade" variant="solid" style={{ cursor: 'pointer' }} onClick={handleExportWithAI}>
-						组装底座数据与 AI 插件，导出JSX
+						组装多角色底座数据与 AI 插件，导出 JSX
 					</Button>
 				</Flex>
 			</Card>
