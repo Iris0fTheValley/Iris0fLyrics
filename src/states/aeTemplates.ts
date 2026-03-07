@@ -7,6 +7,10 @@ export interface AETemplate {
   description: string;
   code: string;
   isDefault?: boolean;
+  // 🌟 扩展字段：让原生模板系统兼容携带多维宇宙数据与 AI 插件
+  spatialMap?: Record<string, any>;
+  config?: Record<string, any>;
+  aiCode?: string;
 }
 
 // 🌟 模板 1：空间节点引擎 (多角色平行宇宙版)
@@ -72,6 +76,7 @@ const spatialNodeEngineCode = `function buildAMLLScript(data, options) {
     jsx += "    var focusIdx = -1;\\n";
     jsx += "    for(var i=0; i<nodes.length; i++) if(nodes[i].type === 'focus') focusIdx = i;\\n";
     
+    jsx += "    var frames = [];\\n";
     jsx += "    for(var i=0; i<nodes.length; i++) {\\n";
     jsx += "        var item = nodes[i];\\n";
     jsx += "        var t = lineStart;\\n";
@@ -80,24 +85,53 @@ const spatialNodeEngineCode = `function buildAMLLScript(data, options) {
     jsx += "             if (offset < 0) t = lineStart + (offset * CONFIG.animDuration);\\n"; 
     jsx += "             else if (offset > 0) t = lineEnd + ((offset - 1) * CONFIG.animDuration);\\n"; 
     jsx += "        }\\n";
-    
     jsx += "        var px = parseFloat(item.node.x) || 50;\\n";
     jsx += "        var py = parseFloat(item.node.y) || 50;\\n";
     jsx += "        var rot = parseFloat(item.node.rot) || 0;\\n";
-    
-    jsx += "        xProp.setValueAtTime(t, px);\\n";
-    jsx += "        yProp.setValueAtTime(t, py);\\n";
-    jsx += "        rProp.setValueAtTime(t, rot);\\n";
-    
     jsx += "        var op = 100;\\n";
     jsx += "        if (item.type === 'in' || item.type === 'out') op = 0;\\n";
     jsx += "        else if (item.type !== 'focus') op = 40;\\n";
-    jsx += "        oProp.setValueAtTime(t, op);\\n";
+    jsx += "        var trans = item.node.transition || { type: 'follow', ratio: 50 };\\n";
+    jsx += "        frames.push({ t: t, px: px, py: py, rot: rot, op: op, trans: trans });\\n";
+    jsx += "    }\\n";
+    
+    jsx += "    var holdTimes = [];\\n";
+    jsx += "    for(var i=0; i<frames.length; i++) {\\n";
+    jsx += "        var f = frames[i];\\n";
+    jsx += "        if (i > 0) {\\n";
+    jsx += "            var prevF = frames[i-1];\\n";
+    jsx += "            if (f.trans.type === 'delay') {\\n";
+    jsx += "                var triggerT = prevF.t + (f.t - prevF.t) * (f.trans.ratio / 100);\\n";
+    jsx += "                xProp.setValueAtTime(triggerT, prevF.px);\\n";
+    jsx += "                yProp.setValueAtTime(triggerT, prevF.py);\\n";
+    jsx += "                rProp.setValueAtTime(triggerT, prevF.rot);\\n";
+    jsx += "                oProp.setValueAtTime(triggerT, prevF.op);\\n";
+    jsx += "            } else if (f.trans.type === 'hold') {\\n";
+    jsx += "                holdTimes.push(prevF.t);\\n";
+    jsx += "            }\\n";
+    jsx += "        }\\n";
+    jsx += "        xProp.setValueAtTime(f.t, f.px);\\n";
+    jsx += "        yProp.setValueAtTime(f.t, f.py);\\n";
+    jsx += "        rProp.setValueAtTime(f.t, f.rot);\\n";
+    jsx += "        oProp.setValueAtTime(f.t, f.op);\\n";
     jsx += "    }\\n";
     
     jsx += "    if (typeof ai_custom_easing === 'function') {\\n";
     jsx += "        try { ai_custom_easing(xProp, yProp, rProp, oProp, CONFIG); } catch(e) {}\\n";
     jsx += "    }\\n";
+    
+    jsx += "    // 🌟 AI 执行完毕后，强制锁定需要 HOLD 的关键帧，防止被平滑覆盖\\n";
+    jsx += "    function enforceHold(prop) {\\n";
+    jsx += "        for(var i=0; i<holdTimes.length; i++) {\\n";
+    jsx += "            for(var j=1; j<=prop.numKeys; j++) {\\n";
+    jsx += "                if (Math.abs(prop.keyTime(j) - holdTimes[i]) < 0.001) {\\n";
+    jsx += "                    prop.setInterpolationTypeAtKey(j, prop.keyInInterpolationType(j), KeyframeInterpolationType.HOLD);\\n";
+    jsx += "                    break;\\n";
+    jsx += "                }\\n";
+    jsx += "            }\\n";
+    jsx += "        }\\n";
+    jsx += "    }\\n";
+    jsx += "    enforceHold(xProp); enforceHold(yProp); enforceHold(rProp); enforceHold(oProp);\\n";
     jsx += "}\\n";
     
     for (let i = 0; i < lines.length; i++) {

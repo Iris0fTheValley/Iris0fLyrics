@@ -7,6 +7,7 @@ import { aeConfigAtom } from '$/states/aeConfig';
 import { activeNodeIdAtom, activeTrackIdAtom, spatialDataAtom, spatialDataMapAtom, activeRoleIdAtom, roleSystemAtom, type SpatialNode, type TrackSpatial } from '$/states/spatial';
 import AENode from './AENode';
 import { getRoleColors } from './AENodeToolbar';
+import AETransitionCanvasPoint from './AETransitionCanvasPoint'; // 🌟 引入新组件
 
 type ExtendedConfig = { width?: number; height?: number; };
 
@@ -81,20 +82,49 @@ export default function AESpatialStage() {
 
 		const lines = [];
 		for (let i = 0; i < points.length - 1; i++) {
+			const startP = points[i];
+			const endP = points[i+1];
 			lines.push(
 				<line 
-					key={`line-${trackId}-${i}`} 
-					x1={`${points[i].x}%`} y1={`${points[i].y}%`} 
-					x2={`${points[i+1].x}%`} y2={`${points[i+1].y}%`} 
+					key={`line-${trackId}-${i}`}
+					x1={`${startP.x}%`} y1={`${startP.y}%`} 
+					x2={`${endP.x}%`} y2={`${endP.y}%`} 
 					stroke={color} 
 					strokeWidth={isActiveRole ? "2.5" : "1.5"} 
 					strokeDasharray={isActiveRole ? "8 8" : "4 4"} 
-					opacity={isActiveRole ? 1 : 0.6} // 提升台后虚线的亮度
-					className="amll-flowing-line" // 🌟 核心：无差别赋予流动光效
+					opacity={isActiveRole ? 1 : 0.6} 
+					className={isActiveRole ? "amll-flowing-line" : ""} 
 				/>
 			);
 		}
 		return <g>{lines}</g>;
+	};
+
+	// 🌟 独立的转场控制点渲染引擎 (生成 HTML 元素，绝对定位在 SVG 上层)
+	const renderTransitionPoints = (trackId: 'main' | 'sub' | 'ruby', track: TrackSpatial, color: string, isActiveRole: boolean) => {
+		if (!track.visible || !isActiveRole) return null; // 仅为当前活跃角色渲染控制点
+		const points: SpatialNode[] = [];
+		if (track.in) points.push(track.in);
+		points.push(...track.preFocus);
+		if (track.focus) points.push(track.focus);
+		points.push(...track.postFocus);
+		if (track.out) points.push(track.out);
+
+		const nodes = [];
+		for (let i = 0; i < points.length - 1; i++) {
+			const startP = points[i];
+			const endP = points[i+1];
+			nodes.push(
+				<AETransitionCanvasPoint 
+					key={`tp-${trackId}-${i}`}
+					targetNodeId={endP.id} 
+					startPos={{x: Number(startP.x), y: Number(startP.y)}} 
+					endPos={{x: Number(endP.x), y: Number(endP.y)}}
+					color={color} isActive={isActiveRole} stageRef={stageRef as React.RefObject<HTMLDivElement>}
+				/>
+			);
+		}
+		return nodes;
 	};
 
 	// 🌟 残影引擎升级：加入实体底色和粗虚线，彻底杜绝重叠看不清的问题
@@ -232,6 +262,11 @@ export default function AESpatialStage() {
 						);
 					})}
 
+					{renderTransitionPoints('main', data.main, getRoleColors(activeRoleId).main, true)}
+					{renderTransitionPoints('sub', data.sub, getRoleColors(activeRoleId).sub, true)}
+					{renderTransitionPoints('ruby', data.ruby, getRoleColors(activeRoleId).ruby, true)}
+
+					{/* 渲染当前主宇宙的物理实体 */}
 					{renderActiveTrackNodes('main', getRoleColors(activeRoleId).main)}
 					{renderActiveTrackNodes('sub', getRoleColors(activeRoleId).sub)}
 					{renderActiveTrackNodes('ruby', getRoleColors(activeRoleId).ruby)}

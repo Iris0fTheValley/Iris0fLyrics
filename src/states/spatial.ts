@@ -2,6 +2,13 @@
 import { atom } from 'jotai';
 import { atomWithStorage } from 'jotai/utils'; // 引入本地持久化存储
 
+export type TransitionType = 'follow' | 'hold' | 'delay';
+
+export interface TransitionConfig {
+  type: TransitionType;
+  ratio: number; // 0 到 100，表示在虚线上的百分比位置
+}
+
 export interface SpatialNode {
   id: string; 
   x: number | string;
@@ -10,6 +17,7 @@ export interface SpatialNode {
   text: string;
   width: number | string;
   height: number | string;
+  transition?: TransitionConfig; // 🌟 新增：记录从上一个节点到当前节点的过渡方式
 }
 
 export interface TrackSpatial {

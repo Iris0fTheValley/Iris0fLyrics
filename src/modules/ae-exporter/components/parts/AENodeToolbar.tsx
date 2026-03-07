@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Box, Card, Flex, Text, TextField, SegmentedControl, Slider, Button, Tooltip, Switch, Popover, Select } from '@radix-ui/themes';
 import { useAtom, useAtomValue } from 'jotai';
 import { activeTrackIdAtom, activeNodeIdAtom, lockSubNodeDragAtom, spatialDataAtom, spatialDataMapAtom, activeRoleIdAtom, roleSystemAtom, type SpatialNode, type TrackSpatial } from '$/states/spatial';
+import AETransitionToolbarCard from './AETransitionToolbarCard';
 
 export const getRoleColors = (roleId: string) => {
 	const palettes: Record<string, { main: string; sub: string; ruby: string }> = {
@@ -18,10 +19,10 @@ export const getRoleColors = (roleId: string) => {
 
 export default function AENodeToolbar() {
 	const [data, setData] = useAtom(spatialDataAtom);
-	const dataMap = useAtomValue(spatialDataMapAtom); // 🌟 引入大字典，用于读取其他人的数据
+	const dataMap = useAtomValue(spatialDataMapAtom); 
 
 	const [activeTrackId, setActiveTrackId] = useAtom(activeTrackIdAtom);
-	const [activeNodeId, setActiveNodeId] = useAtom(activeNodeIdAtom); 
+	const [, setActiveNodeId] = useAtom(activeNodeIdAtom); 
 	const [lockSubNodeDrag, setLockSubNodeDrag] = useAtom(lockSubNodeDragAtom); 
 	
 	const [activeRoleId] = useAtom(activeRoleIdAtom);
@@ -31,14 +32,12 @@ export default function AENodeToolbar() {
 
 	const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
 	
-	// 🌟 魔法阵专属状态
 	const [magicSourceRole, setMagicSourceRole] = useState<string>('1');
 	const [globalRot, setGlobalRot] = useState<number>(180);
 
 	const currentTrack = data[activeTrackId];
 	const themeColor = getRoleColors(activeRoleId)[activeTrackId];
 
-	// 当切换画板时，智能避开自己作为魔法数据源
 	useEffect(() => {
 		if (magicSourceRole === activeRoleId) {
 			const nextRole = roleIds.find(id => id !== activeRoleId) || '1';
@@ -148,7 +147,6 @@ export default function AENodeToolbar() {
 		setActiveNodeId(id);
 	};
 
-	// 🌟 核心魔法引擎：矩阵运算
 	const applyMagic = (magicType: 'clone' | 'mirrorX' | 'mirrorY' | 'rotate') => {
 		const sourceData = dataMap[magicSourceRole];
 		if (!sourceData) return;
@@ -180,7 +178,6 @@ export default function AENodeToolbar() {
 				newRot = newRot + globalRot;
 			}
 
-			// 保留两位小数，防止无限循环的小数点导致 UI 卡顿
 			return { 
 				...node, 
 				x: Math.round(newX * 100) / 100, 
@@ -222,38 +219,53 @@ export default function AENodeToolbar() {
 			}
 		}
 
-		return (
-			<Card style={{ backgroundColor: `color-mix(in srgb, ${themeColor} 5%, var(--gray-2))`, border: `1px solid ${themeColor}80` }}>
-				<Flex justify="between" align="center" 
-					draggable={!isUsed} onDragStart={(e) => !isUsed && handleDragStart(e, dragType)}
-					onClick={() => { if (isUsed) { setActiveNodeId(id); setExpandedNodes(prev => ({ ...prev, [id]: !prev[id] })); } }}
-					style={{ cursor: !isUsed ? 'grab' : 'pointer', opacity: 1, padding: '4px' }}
-				>
-					<Flex align="center" gap="3">
-						{isUsed && <Text size="2" color="gray" style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', display: 'inline-block', userSelect: 'none' }}>▶</Text>}
-						<Box style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: themeColor }} />
-						<Text size="2" weight="bold">{label}</Text>
-					</Flex>
-					{!isUsed && <Text size="1" color="gray">按住拖入画布</Text>}
-					{isUsed && <Text size="1" color="red" style={{cursor: 'pointer', zIndex: 10}} onClick={(e) => { e.stopPropagation(); removeNode(id); }}>🗑️ 移除</Text>}
-				</Flex>
+		// 🌟 修复 4：修复了 forEach 语法警告
+		const validNodes: string[] = [];
+		if (currentTrack.in) validNodes.push(currentTrack.in.id);
+		currentTrack.preFocus.forEach(n => { validNodes.push(n.id); });
+		if (currentTrack.focus) validNodes.push(currentTrack.focus.id);
+		currentTrack.postFocus.forEach(n => { validNodes.push(n.id); });
+		if (currentTrack.out) validNodes.push(currentTrack.out.id);
+		
+		const myIndex = validNodes.indexOf(id);
+		const hasPreviousNode = myIndex > 0;
 
-				{isExpanded && (
-					<Flex direction="column" gap="3" mt="3" pl="3" style={{ borderLeft: `2px solid ${themeColor}` }}>
-						<TextField.Root size="1" value={nodeData.text} onChange={(e) => mutateNode(id, 'text', e.target.value)} />
-						<Flex gap="3" align="center"><Text size="1" color="gray" style={{ width: 30 }}>X轴</Text><Slider size="1" min={-20} max={120} step={1} value={[Number(nodeData.x)||50]} onValueChange={([v]) => mutateNode(id, 'x', v)} style={{ flex: 1 }} /><TextField.Root size="1" value={nodeData.x} onChange={(e) => mutateNode(id, 'x', e.target.value)} style={{ width: 50 }} /></Flex>
-						<Flex gap="3" align="center"><Text size="1" color="gray" style={{ width: 30 }}>Y轴</Text><Slider size="1" min={-20} max={120} step={1} value={[Number(nodeData.y)||50]} onValueChange={([v]) => mutateNode(id, 'y', v)} style={{ flex: 1 }} /><TextField.Root size="1" value={nodeData.y} onChange={(e) => mutateNode(id, 'y', e.target.value)} style={{ width: 50 }} /></Flex>
-						<Flex gap="3" align="center"><Text size="1" color="gray" style={{ width: 30 }}>宽</Text><Slider size="1" min={20} max={600} step={1} value={[Number(nodeData.width)||100]} onValueChange={([v]) => mutateNode(id, 'width', v)} style={{ flex: 1 }} /><TextField.Root size="1" value={nodeData.width} onChange={(e) => mutateNode(id, 'width', e.target.value)} style={{ width: 50 }} /></Flex>
-						<Flex gap="3" align="center"><Text size="1" color="gray" style={{ width: 30 }}>角度</Text><Slider size="1" min={-180} max={180} step={1} value={[Number(nodeData.rot)||0]} onValueChange={([v]) => mutateNode(id, 'rot', v)} style={{ flex: 1 }} /><TextField.Root size="1" value={nodeData.rot} onChange={(e) => mutateNode(id, 'rot', e.target.value)} style={{ width: 50 }} /></Flex>
-						
-						{canAlign && (
-							<Button size="1" variant="soft" color="blue" onClick={() => alignToMainTrack(id)}>
-								🧲 吸附对齐主歌词
-							</Button>
-						)}
+		return (
+			<Flex direction="column">
+				{isUsed && hasPreviousNode && <AETransitionToolbarCard targetNodeId={id} color={themeColor} />}
+				
+				<Card style={{ backgroundColor: `color-mix(in srgb, ${themeColor} 5%, var(--gray-2))`, border: `1px solid ${themeColor}80` }}>
+					<Flex justify="between" align="center" 
+						draggable={!isUsed} onDragStart={(e) => !isUsed && handleDragStart(e, dragType)}
+						onClick={() => { if (isUsed) { setActiveNodeId(id); setExpandedNodes(prev => ({ ...prev, [id]: !prev[id] })); } }}
+						style={{ cursor: !isUsed ? 'grab' : 'pointer', opacity: 1, padding: '4px' }}
+					>
+						<Flex align="center" gap="3">
+							{isUsed && <Text size="2" color="gray" style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', display: 'inline-block', userSelect: 'none' }}>▶</Text>}
+							<Box style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: themeColor }} />
+							<Text size="2" weight="bold">{label}</Text>
+						</Flex>
+						{!isUsed && <Text size="1" color="gray">按住拖入画布</Text>}
+						{isUsed && <Text size="1" color="red" style={{cursor: 'pointer', zIndex: 10}} onClick={(e) => { e.stopPropagation(); removeNode(id); }}>🗑️ 移除</Text>}
 					</Flex>
-				)}
-			</Card>
+
+					{isExpanded && (
+						<Flex direction="column" gap="3" mt="3" pl="3" style={{ borderLeft: `2px solid ${themeColor}` }}>
+							<TextField.Root size="1" value={nodeData.text} onChange={(e) => mutateNode(id, 'text', e.target.value)} />
+							<Flex gap="3" align="center"><Text size="1" color="gray" style={{ width: 30 }}>X轴</Text><Slider size="1" min={-20} max={120} step={1} value={[Number(nodeData.x)||50]} onValueChange={([v]) => mutateNode(id, 'x', v)} style={{ flex: 1 }} /><TextField.Root size="1" value={nodeData.x} onChange={(e) => mutateNode(id, 'x', e.target.value)} style={{ width: 50 }} /></Flex>
+							<Flex gap="3" align="center"><Text size="1" color="gray" style={{ width: 30 }}>Y轴</Text><Slider size="1" min={-20} max={120} step={1} value={[Number(nodeData.y)||50]} onValueChange={([v]) => mutateNode(id, 'y', v)} style={{ flex: 1 }} /><TextField.Root size="1" value={nodeData.y} onChange={(e) => mutateNode(id, 'y', e.target.value)} style={{ width: 50 }} /></Flex>
+							<Flex gap="3" align="center"><Text size="1" color="gray" style={{ width: 30 }}>宽</Text><Slider size="1" min={20} max={600} step={1} value={[Number(nodeData.width)||100]} onValueChange={([v]) => mutateNode(id, 'width', v)} style={{ flex: 1 }} /><TextField.Root size="1" value={nodeData.width} onChange={(e) => mutateNode(id, 'width', e.target.value)} style={{ width: 50 }} /></Flex>
+							<Flex gap="3" align="center"><Text size="1" color="gray" style={{ width: 30 }}>角度</Text><Slider size="1" min={-180} max={180} step={1} value={[Number(nodeData.rot)||0]} onValueChange={([v]) => mutateNode(id, 'rot', v)} style={{ flex: 1 }} /><TextField.Root size="1" value={nodeData.rot} onChange={(e) => mutateNode(id, 'rot', e.target.value)} style={{ width: 50 }} /></Flex>
+							
+							{canAlign && (
+								<Button size="1" variant="soft" color="blue" onClick={() => alignToMainTrack(id)}>
+									🧲 吸附对齐主歌词
+								</Button>
+							)}
+						</Flex>
+					)}
+				</Card>
+			</Flex> // 🌟 修复 5：补上了这个致命遗漏的 Flex 闭合标签，彻底解决文件报错！
 		);
 	};
 
@@ -261,10 +273,9 @@ export default function AENodeToolbar() {
 		<Flex direction="column" gap="4">
 			<Box>
 				<Flex justify="between" align="center" mb="2">
-					<Text size="2" weight="bold" style={{ color: themeColor }}>🎯 编排: {activeFolder.roles[parseInt(activeRoleId)-1] || `角色 ${activeRoleId}`}</Text>
+					<Text size="2" weight="bold" style={{ color: themeColor }}>🎯 编排: {activeFolder.roles[parseInt(activeRoleId, 10)-1] || `角色 ${activeRoleId}`}</Text>
 					
 					<Flex gap="2">
-						{/* 🌟 核心：极其震撼的矩阵变换魔法阵 */}
 						<Popover.Root>
 							<Popover.Trigger>
 								<Button size="1" variant="soft" color="violet" style={{ cursor: 'pointer' }}>🪄 轨迹魔法</Button>
@@ -351,7 +362,6 @@ export default function AENodeToolbar() {
 				</SegmentedControl.Root>
 			</Box>
 
-			{/* 节点列表阵列 */}
 			<Flex direction="column" gap="4">
 				{renderCard('in', '入场点 (In)', currentTrack.in, 'in')}
 

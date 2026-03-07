@@ -1,13 +1,14 @@
 // 文件路径：src/modules/ae-exporter/components/parts/AEPromptStation.tsx
 import { Box, Button, Card, Flex, Grid, Text, TextArea, TextField } from '@radix-ui/themes';
 import { useAtom, useStore } from 'jotai';
-import { useState } from 'react';
+import { atomWithStorage } from 'jotai/utils';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 
 import { aeConfigAtom } from '$/states/aeConfig';
-import { selectedAETemplateIdAtom, aeTemplatesAtom, spatialNodeTemplate } from '$/states/aeTemplates';
+import { selectedAETemplateIdAtom, aeTemplatesAtom, spatialNodeTemplate, type AETemplate } from '$/states/aeTemplates';
 import { lyricLinesAtom } from '$/states/main';
-import { spatialDataMapAtom } from '$/states/spatial'; // 🌟 核心：引入多宇宙大字典
+import { spatialDataMapAtom } from '$/states/spatial'; 
 
 type ExtendedConfig = {
 	fontFamily?: string;
@@ -16,6 +17,9 @@ type ExtendedConfig = {
 	letterSpacing?: number;
 	[key: string]: any;
 };
+
+// 本地持久化，确保未保存的 AI 代码刷新不丢失
+const aiCodeAtom = atomWithStorage('amll-ai-code', '');
 
 interface AEPromptStationProps {
 	userDescription: string;
@@ -28,57 +32,115 @@ export default function AEPromptStation(_props: AEPromptStationProps) {
 	const store = useStore();
 	const [rawConfig, setConfig] = useAtom(aeConfigAtom);
 	const config = rawConfig as ExtendedConfig;
-	const [templates] = useAtom(aeTemplatesAtom);
-	const [selectedId] = useAtom(selectedAETemplateIdAtom);
+	const [templates, setTemplates] = useAtom(aeTemplatesAtom);
+	const [selectedId, setSelectedId] = useAtom(selectedAETemplateIdAtom);
 
-	const [motionPrompt, setMotionPrompt] = useState('请帮我加上苹果发布会那种丝滑的缓入缓出贝塞尔曲线动效。');
+	const [motionPrompt, setMotionPrompt] = useState('请帮我加上苹果发布会那种丝滑的缓入缓出贝塞尔曲线动效。\\n对于旋转属性（rProp），请将所有关键帧设置为 KeyframeInterpolationType.HOLD 定格关键帧，让它到点再瞬间旋转。');
 	const [effectPrompt, setEffectPrompt] = useState('距离中心超过 1000 的歌词加上高斯模糊，其余无特效。');
-	const [aiGeneratedCode, setAiGeneratedCode] = useState('');
+	const [aiGeneratedCode, setAiGeneratedCode] = useAtom(aiCodeAtom);
 
 	const updateConfig = (key: string, value: any) => {
 		setConfig(prev => ({ ...prev, [key]: value } as unknown as typeof prev));
 	};
 
+	// 🌟 核心：监听顶部菜单的模板切换事件
+	// 一旦选中的模板里携带了 spatialMap 或 aiCode，瞬间还原到画板上！
+	useEffect(() => {
+		const currentTpl = templates.find(t => t.id === selectedId);
+		if (currentTpl) {
+			if (currentTpl.spatialMap) store.set(spatialDataMapAtom, currentTpl.spatialMap);
+			if (currentTpl.config) store.set(aeConfigAtom, currentTpl.config as any);
+			if (currentTpl.aiCode !== undefined) setAiGeneratedCode(currentTpl.aiCode);
+		}
+	}, [selectedId, templates, store, setAiGeneratedCode]);
+
+	// 🌟 核心：将当前排版包装成标准模板，推入现有的顶部管理系统
+	const handleSaveAsTemplate = () => {
+		const name = window.prompt("请输入新模板名称：", "我的自定义空间动效模板");
+		if (!name) return;
+		const newTemplate: AETemplate = {
+			id: `custom-tpl-${Date.now()}`,
+			name: name,
+			description: '包含自定义空间排版动线与 AI 特效插件代码的完整整合包。',
+			code: spatialNodeTemplate.code, // 沿用基础底座代码
+			isDefault: false,
+			// 携带当前的所有宇宙级资产
+			spatialMap: store.get(spatialDataMapAtom),
+			config: store.get(aeConfigAtom),
+			aiCode: aiGeneratedCode
+		};
+		setTemplates(prev => [...prev, newTemplate]);
+		setSelectedId(newTemplate.id);
+		toast.success("💾 模板已成功生成！现已无缝集成至界面顶部的模板管理系统中，你可以随时导出分享。");
+	};
+
 	const handleCopyPrompt = () => {
-		const apiDocPrompt = `你是一个世界顶级的 After Effects JSX 脚本特效专家。
-我有一个已经在底层计算好所有绝对坐标与时间轴的歌词排版引擎。
-请你帮我编写两个**独立的插件函数**，来实现我想要的动效与特效。
+		const apiDocPrompt = `你是一个世界顶级的 After Effects JSX 脚本专家。
+AE 的 ExtendScript API 非常古老且特殊，大模型经常臆造函数。请你**严格按照我给出的语法示例**，帮我编写两个独立的插件函数。
 
 ## 引擎提供的 API 与全局变量
-全局变量 \`config\` 包含以下属性可用：\`config.width\`, \`config.height\`, \`config.renderThreshold\`。
+全局变量 \`config\` 包含：\`config.width\`, \`config.height\`, \`config.renderThreshold\`。
 
-**你需要编写的函数一：**
-\`function ai_custom_easing(xProp, yProp, rProp, oProp, config)\`
-- 作用：给位置（x/y滑块）、旋转、透明度打贝塞尔缓动关键帧。
-- 提示：你可以使用 \`for (var k=1; k<=xProp.numKeys; k++) { xProp.setTemporalEaseAtKey(k, [new KeyframeEase(...)], ...); }\` 来遍历修改曲线。
+=========================================
+【函数一：ai_custom_easing(xProp, yProp, rProp, oProp, config)】
+- 作用：给位置(x/y)、旋转(r)、透明度(o)打贝塞尔缓动或定格关键帧。
+⚠️ 严格语法限制（绝对不要用 setEaseIn/Out）：
+1. 缓动必须使用：prop.setTemporalEaseAtKey(k, [new KeyframeEase(0, 33)], [new KeyframeEase(0, 85)]);
+2. 定格(HOLD)必须使用：prop.setInterpolationTypeAtKey(k, KeyframeInterpolationType.HOLD);
 
-**你需要编写的函数二：**
-\`function ai_custom_effects(layer, config)\`
-- 作用：给已生成的文字 \`layer\` 添加滤镜和表达式。
-- 提示：可以使用 \`layer.property('ADBE Effect Parade').addProperty('ADBE Gaussian Blur 2')\` 等。
+👉 参考写法模板（请基于此修改）：
+function ai_custom_easing(xProp, yProp, rProp, oProp, config) {
+    for (var k = 1; k <= xProp.numKeys; k++) {
+        // 给位置打丝滑贝塞尔
+        xProp.setTemporalEaseAtKey(k, [new KeyframeEase(0, 33)], [new KeyframeEase(0, 85)]);
+        yProp.setTemporalEaseAtKey(k, [new KeyframeEase(0, 33)], [new KeyframeEase(0, 85)]);
+        
+        // 旋转定格到点突变 (HOLD)
+        rProp.setInterpolationTypeAtKey(k, KeyframeInterpolationType.HOLD);
+        
+        // 透明度也可以打缓动
+        oProp.setTemporalEaseAtKey(k, [new KeyframeEase(0, 33)], [new KeyframeEase(0, 85)]);
+    }
+}
 
+=========================================
+【函数二：ai_custom_effects(layer, config)】
+- 作用：给已生成的文字 layer 添加滤镜和表达式。
+⚠️ 严格语法限制（绝对不要用 layer.effect）：
+1. 必须用 \`layer.property('ADBE Effect Parade')\` 访问特效面板。
+2. 添加模糊：\`var blur = layer.property('ADBE Effect Parade').addProperty('ADBE Gaussian Blur 2');\`
+3. 挂载表达式：\`blur.property(1).expression = "你的代码";\`
+
+👉 参考写法模板：
+function ai_custom_effects(layer, config) {
+    var fx = layer.property("ADBE Effect Parade");
+    var blur = fx.addProperty("ADBE Gaussian Blur 2");
+    blur.property(1).expression = "var cx = " + (config.width/2) + "; var cy = " + (config.height/2) + "; var d = length(transform.position, [cx, cy]); d > 1000 ? 20 : 0;";
+}
+
+=========================================
 ## 我的核心需求
-**1. 动效需求 (针对 ai_custom_easing)：**
-${motionPrompt || '使用简单的平滑缓动即可。'}
+**1. 动效需求：**
+${motionPrompt || '使用模板里的平滑缓动即可。'}
 
-**2. 视觉特效需求 (针对 ai_custom_effects)：**
+**2. 视觉特效需求：**
 ${effectPrompt || '无需特效。'}
 
-⚠️ 请**只输出这两个函数的 JavaScript 代码**，绝对不要去写图层生成的循环代码。不要带 markdown 标记，直接给我纯文本代码。`;
+⚠️ 最终要求：请只输出这两个函数的 JavaScript 纯代码，绝对不要带 \`\`\`javascript 这样的 markdown 标记！直接给我代码本体！`;
 
 		navigator.clipboard.writeText(apiDocPrompt);
-		toast.success('🎉 AI 提示词与插件 API 规范已复制！请直接发给 ChatGPT/Claude！');
+		toast.success('🎉 强力防错版 AI 提示词已复制！请直接发给大模型！');
 	};
 
 	const handleExportWithAI = () => {
 		const currentTemplate = templates.find((tpl) => tpl.id === selectedId) || templates[0];
-		if (currentTemplate.id !== spatialNodeTemplate.id) {
-			toast.warn('当前选择的不是“空间节点引擎”，AI 插件代码将不会生效，正在使用常规模式导出。');
+		if (currentTemplate.id !== spatialNodeTemplate.id && !currentTemplate.spatialMap) {
+			toast.warn('当前选择的不是基于“空间节点引擎”的模板，AI 插件代码将不会生效，正在使用常规模式导出。');
 		}
 
 		try {
 			const ttmlData = store.get(lyricLinesAtom);
-			const spatialMapData = store.get(spatialDataMapAtom); // 🌟 获取全局平行宇宙数据
+			const spatialMapData = store.get(spatialDataMapAtom); 
 			const lines = ttmlData.lyricLines;
 			if (!lines || lines.length === 0) { toast.error('导出失败：没有可用的歌词数据！'); return; }
 
@@ -122,13 +184,10 @@ ${effectPrompt || '无需特效。'}
 					const parsed = parseMixedText(line.translatedLyric, '#FFFFFF', config.subFontSize || 40);
 					parsed.forEach((p) => { sub_words.push({ text: p.text, color: p.color, start: line.startTime / 1000, width: p.width }); });
 				}
-				// 🌟 注入角色的基因标识，告诉 AE 这句话该去哪个画板读数据
 				return { start: line.startTime / 1000, end: line.endTime / 1000, main_words, sub_words, role: line.role || '1' };
 			});
 
-			// 🌟 将 spatialMap 作为全局资产包发送给 AE 脚本引擎
 			const finalData = { maxTime, lines: parsedLines, spatialMap: spatialMapData };
-			
 			const executor = new Function('data', 'options', `${currentTemplate.code}\nreturn buildAMLLScript(data, options);`);
 			const jsxContent = executor(finalData, { enableEffects: true, config, aiCode: aiGeneratedCode });
 
@@ -166,14 +225,14 @@ ${effectPrompt || '无需特效。'}
 						<Text weight="bold" size="3" color="indigo"> 第一步：给大模型的提示词</Text>
 						<Box style={{ flex: 1 }}>
 							<Text size="2" color="gray" mb="1" style={{ display: 'block' }}> 想要什么动效？</Text>
-							<TextArea value={motionPrompt} onChange={(e) => setMotionPrompt(e.target.value)} style={{ height: '60px', resize: 'none' }} />
+							<TextArea value={motionPrompt} onChange={(e) => setMotionPrompt(e.target.value)} style={{ height: '70px', resize: 'none' }} />
 						</Box>
 						<Box style={{ flex: 1 }}>
 							<Text size="2" color="gray" mb="1" style={{ display: 'block' }}> 想要什么特效？</Text>
-							<TextArea value={effectPrompt} onChange={(e) => setEffectPrompt(e.target.value)} style={{ height: '60px', resize: 'none' }} />
+							<TextArea value={effectPrompt} onChange={(e) => setEffectPrompt(e.target.value)} style={{ height: '50px', resize: 'none' }} />
 						</Box>
 						<Button size="3" color="indigo" variant="soft" style={{ cursor: 'pointer', marginTop: 'auto' }} onClick={handleCopyPrompt}>
-							📋 复制提示词 (发给 ChatGPT)
+							📋 复制提示词 (发给 ChatGPT / Claude)
 						</Button>
 					</Flex>
 				</Card>
@@ -181,17 +240,26 @@ ${effectPrompt || '无需特效。'}
 
 			<Card size="2" variant="surface" style={{ backgroundColor: 'var(--jade-2)', border: '1px solid var(--jade-6)' }}>
 				<Flex direction="column" gap="3">
-					<Text weight="bold" size="3" color="jade">⚡ 第二步：粘贴 AI 生成的代码并合成导出</Text>
-					<Text size="2" color="gray">把大模型生成的 <code>ai_custom_easing</code> 和 <code>ai_custom_effects</code> 两个函数完整粘贴在下方：</Text>
+					<Flex justify="between" align="center">
+						<Text weight="bold" size="3" color="jade">⚡ 第二步：粘贴代码，合体导出或入库！</Text>
+						<Text size="2" color="gray">将 AI 生成代码贴在下方即可生效</Text>
+					</Flex>
+					
 					<TextArea 
 						placeholder="function ai_custom_easing(...) { ... }&#10;function ai_custom_effects(...) { ... }" 
 						value={aiGeneratedCode} 
 						onChange={(e) => setAiGeneratedCode(e.target.value)}
 						style={{ height: '150px', fontFamily: 'monospace' }}
 					/>
-					<Button size="3" color="jade" variant="solid" style={{ cursor: 'pointer' }} onClick={handleExportWithAI}>
-						组装多角色底座数据与 AI 插件，导出 JSX
-					</Button>
+					
+					<Flex gap="3" mt="2">
+						<Button size="3" color="jade" variant="solid" style={{ cursor: 'pointer', flex: 1 }} onClick={handleExportWithAI}>
+							🚀 仅组装底层与插件并导出 JSX 脚本
+						</Button>
+						<Button size="3" color="teal" variant="soft" style={{ cursor: 'pointer' }} onClick={handleSaveAsTemplate}>
+							💾 融合当前画板与代码为新模板 (推入顶部菜单)
+						</Button>
+					</Flex>
 				</Flex>
 			</Card>
 		</Flex>
