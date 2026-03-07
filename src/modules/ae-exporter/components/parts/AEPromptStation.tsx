@@ -1,5 +1,5 @@
 // 文件路径：src/modules/ae-exporter/components/parts/AEPromptStation.tsx
-import { Box, Button, Card, Flex, Grid, Text, TextArea, TextField } from '@radix-ui/themes';
+import { Box, Button, Card, Flex, Grid, Text, TextArea, TextField, Select } from '@radix-ui/themes';
 import { useAtom, useStore } from 'jotai';
 import { atomWithStorage } from 'jotai/utils';
 import { useState, useEffect } from 'react';
@@ -17,7 +17,6 @@ type ExtendedConfig = {
 	letterSpacing?: number;
 	[key: string]: any;
 };
-
 // 本地持久化，确保未保存的 AI 代码刷新不丢失
 const aiCodeAtom = atomWithStorage('amll-ai-code', '');
 
@@ -184,7 +183,7 @@ ${effectPrompt || '无需特效。'}
 
 			const finalData = { maxTime, lines: parsedLines, spatialMap: spatialMapData };
 			const executor = new Function('data', 'options', `${currentTemplate.code}\nreturn buildAMLLScript(data, options);`);
-			const jsxContent = executor(finalData, { enableEffects: true, config, aiCode: aiGeneratedCode });
+			let jsxContent = executor(finalData, { enableEffects: true, config, aiCode: aiGeneratedCode });
 
 			const blob = new Blob([jsxContent], { type: 'text/plain;charset=utf-8' });
 			const url = URL.createObjectURL(blob);
@@ -214,7 +213,6 @@ ${effectPrompt || '无需特效。'}
 						</Box>
 					</Flex>
 				</Card>
-
 				<Card size="2" variant="surface" style={{ backgroundColor: 'var(--indigo-2)', border: '1px solid var(--indigo-6)' }}>
 					<Flex direction="column" gap="3" height="100%">
 						<Text weight="bold" size="3" color="indigo"> 第一步：给大模型的提示词</Text>

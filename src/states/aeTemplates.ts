@@ -96,18 +96,21 @@ const spatialNodeEngineCode = `function buildAMLLScript(data, options) {
     jsx += "    }\\n";
     
     jsx += "    var holdTimes = [];\\n";
+    jsx += "    var rHoldTimes = [];\\n"; // 🌟 新增：专门记录旋转锁的册子
     jsx += "    for(var i=0; i<frames.length; i++) {\\n";
     jsx += "        var f = frames[i];\\n";
     jsx += "        if (i > 0) {\\n";
     jsx += "            var prevF = frames[i-1];\\n";
     jsx += "            if (f.trans.type === 'delay') {\\n";
     jsx += "                var triggerT = prevF.t + (f.t - prevF.t) * (f.trans.ratio / 100);\\n";
-    jsx += "                xProp.setValueAtTime(triggerT, prevF.px);\\n";
-    jsx += "                yProp.setValueAtTime(triggerT, prevF.py);\\n";
+    jsx += "                // 🌟 分离轴核心：位置(X/Y)不要打断，让它全程平滑飞行！\\n";
+    jsx += "                // 只有旋转(R)和透明度(O)才在触发点打入中间帧\\n";
     jsx += "                rProp.setValueAtTime(triggerT, prevF.rot);\\n";
     jsx += "                oProp.setValueAtTime(triggerT, prevF.op);\\n";
+    jsx += "                rHoldTimes.push(prevF.t); // 只把旋转的起点锁成 HOLD，防止曲线倒转漂移\\n";
     jsx += "            } else if (f.trans.type === 'hold') {\\n";
     jsx += "                holdTimes.push(prevF.t);\\n";
+    jsx += "                rHoldTimes.push(prevF.t);\\n";
     jsx += "            }\\n";
     jsx += "        }\\n";
     jsx += "        xProp.setValueAtTime(f.t, f.px);\\n";
@@ -115,23 +118,22 @@ const spatialNodeEngineCode = `function buildAMLLScript(data, options) {
     jsx += "        rProp.setValueAtTime(f.t, f.rot);\\n";
     jsx += "        oProp.setValueAtTime(f.t, f.op);\\n";
     jsx += "    }\\n";
-    
     jsx += "    if (typeof ai_custom_easing === 'function') {\\n";
     jsx += "        try { ai_custom_easing(xProp, yProp, rProp, oProp, CONFIG); } catch(e) {}\\n";
     jsx += "    }\\n";
-    
-    jsx += "    // 🌟 AI 执行完毕后，强制锁定需要 HOLD 的关键帧，防止被平滑覆盖\\n";
-    jsx += "    function enforceHold(prop) {\\n";
-    jsx += "        for(var i=0; i<holdTimes.length; i++) {\\n";
+    jsx += "    // 🌟 锁定函数升级：精准区分位置锁和旋转锁\\n";
+    jsx += "    function enforceHold(prop, timesArray) {\\n";
+    jsx += "        for(var i=0; i<timesArray.length; i++) {\\n";
     jsx += "            for(var j=1; j<=prop.numKeys; j++) {\\n";
-    jsx += "                if (Math.abs(prop.keyTime(j) - holdTimes[i]) < 0.001) {\\n";
+    jsx += "                if (Math.abs(prop.keyTime(j) - timesArray[i]) < 0.001) {\\n";
     jsx += "                    prop.setInterpolationTypeAtKey(j, prop.keyInInterpolationType(j), KeyframeInterpolationType.HOLD);\\n";
     jsx += "                    break;\\n";
     jsx += "                }\\n";
     jsx += "            }\\n";
     jsx += "        }\\n";
     jsx += "    }\\n";
-    jsx += "    enforceHold(xProp); enforceHold(yProp); enforceHold(rProp); enforceHold(oProp);\\n";
+    jsx += "    enforceHold(xProp, holdTimes); enforceHold(yProp, holdTimes);\\n";
+    jsx += "    enforceHold(rProp, rHoldTimes); enforceHold(oProp, rHoldTimes);\\n";
     jsx += "}\\n";
     
     for (let i = 0; i < lines.length; i++) {
@@ -369,7 +371,7 @@ export const performanceAETemplate: AETemplate = {
 };
 
 export const aeTemplatesAtom = atomWithStorage<AETemplate[]>(
-  'amll-ae-templates',
+  'amll-ae-templates-v4', 
   [spatialNodeTemplate, defaultAETemplate, performanceAETemplate]
 );
 
