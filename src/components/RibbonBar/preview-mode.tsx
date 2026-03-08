@@ -9,9 +9,9 @@
  * https://github.com/Steve-xmh/amll-ttml-tool/blob/main/LICENSE
  */
 
-import { Checkbox, Grid, Text, TextField } from "@radix-ui/themes";
+import { Checkbox, Grid, Text, TextField, Flex, SegmentedControl, Button } from "@radix-ui/themes";
 import { useAtom } from "jotai";
-import { forwardRef } from "react";
+import { forwardRef, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	hideObsceneWordsAtom,
@@ -19,6 +19,7 @@ import {
 	showRomanLinesAtom,
 	showTranslationLinesAtom,
 } from "$/modules/settings/states/preview";
+import { previewModeAtom, spatialBgMediaAtom } from "$/states/previewMode";
 import { RibbonFrame, RibbonSection } from "./common";
 
 export const PreviewModeRibbonBar = forwardRef<HTMLDivElement>(
@@ -33,6 +34,21 @@ export const PreviewModeRibbonBar = forwardRef<HTMLDivElement>(
 			lyricWordFadeWidthAtom,
 		);
 		const { t } = useTranslation();
+
+		// 🌟 监视器与底片状态
+		const [previewMode, setPreviewMode] = useAtom(previewModeAtom);
+		const [bgMedia, setBgMedia] = useAtom(spatialBgMediaAtom);
+		const fileInputRef = useRef<HTMLInputElement>(null);
+
+		const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+			const file = e.target.files?.[0];
+			if (!file) return;
+			const url = URL.createObjectURL(file);
+			const type = file.type.startsWith('video/') ? 'video' : 'image';
+			setBgMedia({ type, url });
+			// 清除 input 值，保证用户重复上传同一张图片时也能触发 onChange
+			e.target.value = '';
+		};
 
 		return (
 			<RibbonFrame ref={ref}>
@@ -61,6 +77,32 @@ export const PreviewModeRibbonBar = forwardRef<HTMLDivElement>(
 						/>
 					</Grid>
 				</RibbonSection>
+
+				{/* 🌟 核心改动：把监视器和垫图控制台集成在这里 */}
+				<RibbonSection label="监视器模式">
+					<Flex align="center" gap="3" px="2" style={{ height: '100%' }}>
+						<SegmentedControl.Root value={previewMode} onValueChange={(v: any) => setPreviewMode(v)}>
+							<SegmentedControl.Item value="classic">🎵 经典滚动</SegmentedControl.Item>
+							<SegmentedControl.Item value="spatial">🌌 空间漫游</SegmentedControl.Item>
+						</SegmentedControl.Root>
+
+						{/* 只有在空间模式下才显示垫图按钮，保持界面极度整洁 */}
+						{previewMode === 'spatial' && (
+							<Flex gap="2" align="center">
+								<Button variant="soft" size="1" onClick={() => fileInputRef.current?.click()}>
+									🖼️ 垫入底片
+								</Button>
+								{bgMedia && (
+									<Button variant="soft" color="red" size="1" onClick={() => setBgMedia(null)}>
+										🗑️ 清除
+									</Button>
+								)}
+								<input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*,video/*" style={{ display: 'none' }} />
+							</Flex>
+						)}
+					</Flex>
+				</RibbonSection>
+
 				<RibbonSection label={t("ribbonBar.previewMode.word", "单词")}>
 					<Grid columns="0fr 0fr" gap="2" gapY="1" flexGrow="1" align="center">
 						<Text wrap="nowrap" size="1">

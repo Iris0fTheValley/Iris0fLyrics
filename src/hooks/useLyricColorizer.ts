@@ -36,6 +36,10 @@ function getCleanRoman(line: LyricLine): string {
   }) ?? '';
 }
 
+/**
+ * 纯净版色彩注入引擎：彻底告别 setInterval
+ * 采用 MutationObserver 被动监听模式，0 性能浪费
+ */
 export const useLyricColorizer = (
   originalLyricLines: TTMLLyric,
   showTranslation: boolean,
@@ -43,27 +47,12 @@ export const useLyricColorizer = (
   enabled: boolean
 ) => {
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !originalLyricLines || !originalLyricLines.lyricLines) return;
 
-    const timer = setInterval(() => {
+    // 核心染色逻辑（完全保留了你对 main 和 sub 节点的精确匹配逻辑）
+    const applyColors = () => {
       const mainLineNodes = Array.from(document.querySelectorAll('[class*="lyricMainLine"]')) as HTMLElement[];
       const subLineNodes = Array.from(document.querySelectorAll('[class*="lyricSubLine"]')) as HTMLElement[];
-
-      mainLineNodes.forEach(node => {
-        node.style.removeProperty('color');
-        node.style.removeProperty('text-shadow');
-        Array.from(node.children).forEach(child => {
-          (child as HTMLElement).style.removeProperty('color');
-          (child as HTMLElement).style.removeProperty('text-shadow');
-        });
-      });
-      subLineNodes.forEach(node => {
-        node.style.removeProperty('color');
-        node.style.removeProperty('text-shadow');
-        if (node.dataset.splitApplied === 'true') {
-          delete node.dataset.splitApplied;
-        }
-      });
 
       originalLyricLines.lyricLines.forEach((lineData, index) => {
         const mainText = getMainText(lineData);
@@ -75,6 +64,7 @@ export const useLyricColorizer = (
           mainNode = mainLineNodes[index];
         }
 
+        // --- 处理主歌词 ---
         if (mainNode) {
           const wordNodes = Array.from(mainNode.children) as HTMLElement[];
 
@@ -83,12 +73,15 @@ export const useLyricColorizer = (
             const colorMatch = singleWord.word.match(/(#[0-9a-fA-F]{6})/);
             if (colorMatch) {
               const color = colorMatch[1];
-              mainNode.style.setProperty('color', color, 'important');
-              mainNode.style.setProperty('text-shadow', `0 0 15px ${color}`, 'important');
-              wordNodes.forEach(child => {
-                child.style.setProperty('color', color, 'important');
-                child.style.setProperty('text-shadow', `0 0 15px ${color}`, 'important');
-              });
+              // 性能优化：只有颜色不一样时才触发重绘
+              if (mainNode.style.color !== color) {
+                mainNode.style.setProperty('color', color, 'important');
+                mainNode.style.setProperty('text-shadow', `0 0 15px ${color}`, 'important');
+                wordNodes.forEach(child => {
+                  child.style.setProperty('color', color, 'important');
+                  child.style.setProperty('text-shadow', `0 0 15px ${color}`, 'important');
+                });
+              }
             }
           } else {
             const unmatchedNodes = [...wordNodes];
@@ -101,7 +94,7 @@ export const useLyricColorizer = (
               if (nodeIndex !== -1) {
                 const targetNode = unmatchedNodes[nodeIndex];
                 const colorMatch = wordData.word.match(/(#[0-9a-fA-F]{6})/);
-                if (colorMatch) {
+                if (colorMatch && targetNode.style.color !== colorMatch[1]) {
                   targetNode.style.setProperty('color', colorMatch[1], 'important');
                   targetNode.style.setProperty('text-shadow', `0 0 15px ${colorMatch[1]}`, 'important');
                 }
@@ -111,13 +104,14 @@ export const useLyricColorizer = (
           }
         }
 
-        // 处理翻译行
+        // --- 处理翻译行 ---
         if (showTranslation && lineData.translatedLyric) {
           const transClean = parseMixedText(lineData.translatedLyric).map(p => p.text).join('');
           const subNode = subLineNodes.find(node =>
             node.textContent?.trim().replace(/\s+/g, ' ') === transClean.trim().replace(/\s+/g, ' ')
           );
-          if (subNode && !subNode.dataset.splitApplied) {
+          // 安全锁：如果已经被拆分过，坚决不重新渲染
+          if (subNode && subNode.dataset.splitApplied !== 'true') {
             const parts = parseMixedText(lineData.translatedLyric);
             subNode.innerHTML = '';
             parts.forEach(part => {
@@ -133,14 +127,14 @@ export const useLyricColorizer = (
           }
         }
 
-        // 处理音译行
+        // --- 处理音译行 ---
         if (showRoman && lineData.romanLyric) {
           const romanClean = getCleanRoman(lineData);
-          // 查找匹配的音译行节点，注意可能与翻译行区分，这里简单通过文本匹配
           const subNode = subLineNodes.find(node =>
             node.textContent?.trim().replace(/\s+/g, ' ') === romanClean.trim().replace(/\s+/g, ' ')
           );
-          if (subNode && !subNode.dataset.splitAppliedRoman) { // 使用不同的标记
+          // 安全锁：同理
+          if (subNode && subNode.dataset.splitAppliedRoman !== 'true') { 
             const parts = parseMixedText(lineData.romanLyric);
             subNode.innerHTML = '';
             parts.forEach(part => {
@@ -156,8 +150,37 @@ export const useLyricColorizer = (
           }
         }
       });
-    }, 500);
+    };
 
-    return () => clearInterval(timer);
+    // 🌟 监听器核心：取代 setInterval
+    const observer = new MutationObserver((mutations) => {
+      let shouldScan = false;
+      for (const m of mutations) {
+        // 只有在屏幕上真的出现了新歌词节点，或者文字发生了变动时，才去扫一次
+        if (m.addedNodes.length > 0 || m.type === 'characterData') {
+          shouldScan = true;
+          break;
+        }
+      }
+      
+      if (shouldScan) {
+        applyColors();
+      }
+    });
+
+    // 第一次挂载时先主动渲染一次
+    applyColors();
+
+    // 绑定到 AMLL 播放器的最高层容器上 (注意：关闭了 attributes 监听以防止无限死循环)
+    const targetNode = document.querySelector('.amll-wrapper') || document.body;
+    if (targetNode) {
+      observer.observe(targetNode, { 
+        childList: true, 
+        subtree: true, 
+        characterData: true 
+      });
+    }
+
+    return () => observer.disconnect();
   }, [originalLyricLines, showTranslation, showRoman, enabled]);
 };

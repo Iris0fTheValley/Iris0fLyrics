@@ -15,9 +15,12 @@ import {
 import { isDarkThemeAtom, lyricLinesAtom } from "$/states/main.ts";
 import { enableColorFeaturesAtom } from "$/modules/settings/states";
 import { useLyricColorizer } from "../../hooks/useLyricColorizer";
+import { previewModeAtom } from "$/states/previewMode"; // 🌟 引入对讲机
+import { AESpatialPreview } from "$/modules/ae-exporter/components/parts/AESpatialPreview"; // 🌟 引入透明投影板
 import styles from "./index.module.css";
 
 export const AMLLWrapper = memo(() => {
+  const previewMode = useAtomValue(previewModeAtom); // 🌟 监听当前模式
   const originalLyricLines = useAtomValue(lyricLinesAtom);
   const currentTime = useAtomValue(currentTimeAtom);
   const isPlaying = useAtomValue(audioPlayingAtom);
@@ -62,11 +65,20 @@ export const AMLLWrapper = memo(() => {
     );
   }, [originalLyricLines, showTranslationLines, showRomanLines]);
 
-  useEffect(() => {
+ useEffect(() => {
     setTimeout(() => {
       playerRef.current?.lyricPlayer?.calcLayout(true);
     }, 1500);
   }, []);
+
+  // 🌟 核心分流：如果是空间漫游模式，原版的滚动歌词彻底隐身，挂上我们的画布！
+  if (previewMode === 'spatial') {
+    return (
+      <Card className={classNames(styles.amllWrapper, darkMode && styles.isDark)} style={{ padding: 0, overflow: 'hidden' }}>
+        <AESpatialPreview />
+      </Card>
+    );
+  }
 
   return (
     <Card className={classNames(styles.amllWrapper, darkMode && styles.isDark)}>
