@@ -1,3 +1,4 @@
+// src/hooks/useColorAssets.ts
 import { useAtom } from "jotai";
 import { type ColorFolder, colorSystemAtom } from "../states/colorSystem";
 
@@ -25,7 +26,7 @@ export const useColorAssets = () => {
 		});
 	};
 
-	// 添加新文件夹
+	// 添加新文件夹 (空)
 	const addFolder = (name: string) => {
 		const newId = Date.now().toString();
 		setSystem((prev) => ({
@@ -36,6 +37,25 @@ export const useColorAssets = () => {
 				{ id: newId, name, colors: Array(100).fill("") },
 			],
 		}));
+	};
+
+	// 🌟 新增：添加新文件夹，并直接塞入提取好的颜色数组 (带资进组)
+	const addFolderWithColors = (name: string, initialColors: string[]) => {
+		const newId = Date.now().toString();
+		setSystem((prev) => {
+			const colors = Array(100).fill("");
+			initialColors.forEach((c, i) => {
+				if (i < 100) colors[i] = c;
+			});
+			return {
+				...prev,
+				activeFolderId: newId,
+				folders: [
+					...prev.folders,
+					{ id: newId, name, colors },
+				],
+			};
+		});
 	};
 
 	// 删除文件夹（至少保留一个）
@@ -86,6 +106,7 @@ export const useColorAssets = () => {
 		system,
 		saveColorToSlot,
 		addFolder,
+		addFolderWithColors, // 🌟 暴露出这个新接口
 		deleteFolder,
 		renameFolder,
 		setSlotCount,

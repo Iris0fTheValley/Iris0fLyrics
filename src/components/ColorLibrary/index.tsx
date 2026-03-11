@@ -1,12 +1,21 @@
+// src/components/ColorLibrary/index.tsx
 import type React from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useColorAssets } from "../../hooks/useColorAssets";
 import { useCursorInjection } from "../../hooks/useCursorInjection";
 
 interface ColorLibraryProps {
-	// biome-ignore lint/correctness/noUnusedFunctionParameters: <可能将来用于关闭面板>
 	onClose?: () => void;
 }
+
+// 🌟 纯原生辅助：RGB 转 HEX
+const rgbToHex = (r: number, g: number, b: number) => {
+	return "#" + [r, g, b].map(x => {
+		const hex = Math.max(0, Math.min(255, x)).toString(16);
+		return hex.length === 1 ? "0" + hex : hex;
+	}).join("").toUpperCase();
+};
 
 export const ColorLibrary: React.FC<ColorLibraryProps> = ({ onClose }) => {
 	const { t } = useTranslation();
@@ -14,6 +23,7 @@ export const ColorLibrary: React.FC<ColorLibraryProps> = ({ onClose }) => {
 		system,
 		saveColorToSlot,
 		addFolder,
+		addFolderWithColors, // 引入带资进组 Hook
 		deleteFolder,
 		renameFolder,
 		setSlotCount,
@@ -24,6 +34,10 @@ export const ColorLibrary: React.FC<ColorLibraryProps> = ({ onClose }) => {
 	const { insertAtCursor } = useCursorInjection();
 
 	const activeFolder = getActiveFolder();
+	
+	// 🌟 图像上传引擎状态
+	const fileInputRef = useRef<HTMLInputElement>(null);
+	const [isExtracting, setIsExtracting] = useState(false);
 
 	const handleFolderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
 		setActiveFolder(e.target.value);
@@ -56,10 +70,77 @@ export const ColorLibrary: React.FC<ColorLibraryProps> = ({ onClose }) => {
 	const handleSlotContextMenu = (e: React.MouseEvent, slotIndex: number) => {
 		e.preventDefault();
 		if (!activeFolder) return;
-		const color = prompt("输入颜色代码（如 #FF0000）", "#FF0000");
+		const color = prompt("输入颜色代码（如 #FF0000）", activeFolder.colors[slotIndex] || "#FF0000");
 		if (color) {
 			saveColorToSlot(activeFolder.id, slotIndex, color.toUpperCase());
 		}
+	};
+
+	// 🌟 核心算法：纯前端原生 Canvas 色彩降维提取 (0 依赖)
+	const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
+
+		setIsExtracting(true);
+		const imageUrl = URL.createObjectURL(file);
+		const img = new Image();
+		img.crossOrigin = "Anonymous";
+		img.onload = () => {
+			const canvas = document.createElement("canvas");
+			const ctx = canvas.getContext("2d");
+			if (!ctx) {
+				setIsExtracting(false);
+				return;
+			}
+
+			// 将图像压缩到 100x100 像素进行极速扫描，避免性能卡顿
+			const MAX_SIZE = 100;
+			let width = img.width;
+			let height = img.height;
+			if (width > height) {
+				if (width > MAX_SIZE) {
+					height *= MAX_SIZE / width;
+					width = MAX_SIZE;
+				}
+			} else {
+				if (height > MAX_SIZE) {
+					width *= MAX_SIZE / height;
+					height = MAX_SIZE;
+				}
+			}
+			canvas.width = width;
+			canvas.height = height;
+			ctx.drawImage(img, 0, 0, width, height);
+
+			const imageData = ctx.getImageData(0, 0, width, height).data;
+			const colorMap = new Map<string, number>();
+
+			// 极简色彩量化聚合 (将相近颜色合并到一个粗糙的色带中)
+			for (let i = 0; i < imageData.length; i += 16) { // 每隔 4 个像素扫描一次，加速
+				const r = Math.round(imageData[i] / 32) * 32;
+				const g = Math.round(imageData[i + 1] / 32) * 32;
+				const b = Math.round(imageData[i + 2] / 32) * 32;
+				const a = imageData[i + 3];
+				if (a < 128) continue; // 忽略透明像素
+
+				const hex = rgbToHex(r, g, b);
+				colorMap.set(hex, (colorMap.get(hex) || 0) + 1);
+			}
+
+			// 按照颜色出现频率排序
+			const sortedColors = Array.from(colorMap.entries()).sort((a, b) => b[1] - a[1]);
+			// 提取前 5 种最显眼的主色调
+			const topColors = sortedColors.slice(0, 5).map(entry => entry[0]);
+
+			// 以当前时间作为文件夹后缀，越权安全：绝对不覆盖已有数据！
+			const timeString = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+			addFolderWithColors(`🖼️ 提取色板 (${timeString})`, topColors);
+
+			URL.revokeObjectURL(imageUrl);
+			setIsExtracting(false);
+			if (fileInputRef.current) fileInputRef.current.value = "";
+		};
+		img.src = imageUrl;
 	};
 
 	return (
@@ -78,6 +159,15 @@ export const ColorLibrary: React.FC<ColorLibraryProps> = ({ onClose }) => {
 				fontSize: "13px",
 			}}
 		>
+			{/* 隐藏的文件上传器 */}
+			<input 
+				type="file" 
+				ref={fileInputRef} 
+				onChange={handleImageUpload} 
+				accept="image/*" 
+				style={{ display: "none" }} 
+			/>
+
 			{/* 头部：文件夹管理 */}
 			<div
 				style={{
@@ -87,23 +177,31 @@ export const ColorLibrary: React.FC<ColorLibraryProps> = ({ onClose }) => {
 				}}
 			>
 				<span style={{ color: "#aaa", fontWeight: "bold" }}>
-					{t("colorLibrary.header")}
+					{t("colorLibrary.header", "色彩资产库")}
 				</span>
 				<div style={{ display: "flex", gap: "6px" }}>
+					{/* 🌟 智能提取引擎按钮 */}
+					<button 
+						onClick={() => fileInputRef.current?.click()} 
+						style={{ ...buttonStyle, background: "#006699", fontWeight: 'bold' }}
+						disabled={isExtracting}
+					>
+						{isExtracting ? "正在提取..." : "🖼️ 提取图片色板"}
+					</button>
 					<button onClick={handleRenameFolder} style={buttonStyle}>
-						{t("colorLibrary.renameButton")}
+						{t("colorLibrary.renameButton", "重命名")}
 					</button>
 					<button
 						onClick={handleDeleteFolder}
 						style={{ ...buttonStyle, background: "#633" }}
 					>
-						{t("colorLibrary.deleteButton")}
+						{t("colorLibrary.deleteButton", "删除")}
 					</button>
 					<button
 						onClick={handleAddFolder}
 						style={{ ...buttonStyle, background: "#364" }}
 					>
-						{t("colorLibrary.addButton")}
+						{t("colorLibrary.addButton", "+ 文件夹")}
 					</button>
 				</div>
 			</div>
@@ -147,7 +245,7 @@ export const ColorLibrary: React.FC<ColorLibraryProps> = ({ onClose }) => {
 						alignItems: "center",
 					}}
 				>
-					<span>{t("colorLibrary.slotCountLabel")}</span>
+					<span>{t("colorLibrary.slotCountLabel", "悬浮面板显示格子数:")}</span>
 					<input
 						type="number"
 						min={3}
@@ -172,7 +270,7 @@ export const ColorLibrary: React.FC<ColorLibraryProps> = ({ onClose }) => {
 						alignItems: "center",
 					}}
 				>
-					<span>{t("colorLibrary.orientationLabel")}</span>
+					<span>{t("colorLibrary.orientationLabel", "悬浮面板排版:")}</span>
 					<select
 						value={system.orientation}
 						onChange={(e) =>
@@ -188,18 +286,18 @@ export const ColorLibrary: React.FC<ColorLibraryProps> = ({ onClose }) => {
 						}}
 					>
 						<option value="horizontal">
-							{t("colorLibrary.orientationHorizontal")}
+							{t("colorLibrary.orientationHorizontal", "水平")}
 						</option>
 						<option value="vertical">
-							{t("colorLibrary.orientationVertical")}
+							{t("colorLibrary.orientationVertical", "垂直")}
 						</option>
 					</select>
 				</div>
 			</div>
 
 			<div style={{ height: "1px", background: "#444" }} />
-			<span style={{ color: "#888", textAlign: "center" }}>
-				{t("colorLibrary.hint")}
+			<span style={{ color: "#888", textAlign: "center", fontSize: "12px" }}>
+				{t("colorLibrary.hint", "点击格子插入歌词，右键编辑颜色代码")}
 			</span>
 
 			{/* 100个格子的颜色矩阵 */}
@@ -216,8 +314,7 @@ export const ColorLibrary: React.FC<ColorLibraryProps> = ({ onClose }) => {
 				>
 					{activeFolder.colors.map((hex, idx) => {
 						const isMainBarSlot = idx < system.slotCount;
-						// 使用颜色值+索引作为key，因为颜色可能重复，加上索引确保唯一
-						const uniqueKey = `${hex}-${idx}`;
+						const uniqueKey = `slot-${idx}`; // 修复：直接用 idx 防止重复 key 报错
 						return (
 							<div
 								key={uniqueKey}
@@ -282,4 +379,5 @@ const buttonStyle: React.CSSProperties = {
 	padding: "4px 8px",
 	cursor: "pointer",
 	fontSize: "12px",
+	transition: "background 0.2s"
 };
