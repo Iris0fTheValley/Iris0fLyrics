@@ -184,6 +184,24 @@ export default function AENodeToolbar() {
 		});
 	};
 
+	// 🌟 新增：专属的固定节点“一键加入”逻辑
+	const handleAddUniqueNode = (type: 'in' | 'focus' | 'out') => {
+		const trackPrefix = activeTrackId === 'main' ? '主歌词' : activeTrackId === 'sub' ? '翻译' : '音译';
+		const typeName = type === 'in' ? '入场点' : type === 'out' ? '离场点' : '定点焦点';
+		const text = `${trackPrefix}${typeName}`;
+		const defaultY = activeTrackId === 'main' ? 50 : activeTrackId === 'sub' ? 60 : 40;
+
+		const newNode: SpatialNode = { id: type, x: 50, y: defaultY, rot: 0, width: 140, height: 36, text };
+		setData(prev => {
+			const next = { ...prev };
+			const track = { ...next[activeTrackId] };
+			track[type] = newNode;
+			return { ...next, [activeTrackId]: track };
+		});
+		setActiveNodeId(type);
+		setExpandedNodes(prev => ({ ...prev, [type]: true })); // 🌟 自动展开面板方便编辑
+	};
+
 	const clickToAdd = (type: 'preFocus' | 'postFocus') => {
 		const id = `${type}_${Date.now()}`;
 		const trackPrefix = activeTrackId === 'main' ? '主歌词' : activeTrackId === 'sub' ? '翻译' : '音译';
@@ -298,10 +316,19 @@ export default function AENodeToolbar() {
 							<Box style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: themeColor }} />
 							<Text size="2" weight="bold">{label}</Text>
 						</Flex>
-						{!isUsed && <Text size="1" color="gray">按住拖入画布</Text>}
+						
+						{/* 🌟 修改：当节点不存在时，显示拖入提示和一键加入按钮 */}
+						{!isUsed && (
+							<Flex align="center" gap="2">
+								<Text size="1" color="gray">按住拖入或</Text>
+								<Button size="1" variant="soft" color="jade" style={{ cursor: 'pointer', zIndex: 10 }} onClick={(e) => { e.stopPropagation(); handleAddUniqueNode(id as 'in' | 'focus' | 'out'); }}>
+									+ 加入
+								</Button>
+							</Flex>
+						)}
+
 						{isUsed && <Text size="1" color="red" style={{cursor: 'pointer', zIndex: 10}} onClick={(e) => { e.stopPropagation(); removeNode(id); }}>🗑️ 移除</Text>}
 					</Flex>
-
 					{isExpanded && (
 						<Flex direction="column" gap="3" mt="3" pl="3" style={{ borderLeft: `2px solid ${themeColor}` }}>
 							<TextField.Root size="1" value={nodeData.text} onChange={(e) => mutateNode(id, 'text', e.target.value)} />

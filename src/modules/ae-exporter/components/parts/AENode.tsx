@@ -109,7 +109,10 @@ export default function AENode({ trackId, nodeId, color, stageRef }: AENodeProps
 					target={targetRef} container={stageRef.current}
 					draggable={!isDragLocked} resizable={false} rotatable={!isRotLocked} origin={false} 
 					snappable={!isDragLocked} snapCenter={true} snapElement={true} 
-					elementGuidelines={['.amll-spatial-node']} snapThreshold={8} 
+					// 🌟 魔法核心：显式开启自身和目标元素的水平、垂直中线磁吸响应！
+					snapDirections={{ top: true, left: true, bottom: true, right: true, center: true, middle: true }}
+					elementSnapDirections={{ top: true, left: true, bottom: true, right: true, center: true, middle: true }}
+					elementGuidelines={['.amll-spatial-node']} snapThreshold={10} 
 					verticalGuidelines={stageRef.current ? [stageRef.current.clientWidth / 2] : []}
 					horizontalGuidelines={stageRef.current ? [stageRef.current.clientHeight / 2] : []}
 					
