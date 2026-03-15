@@ -47,7 +47,7 @@ export default function AEModePanel() {
 					gap="4" align="stretch" 
 					// 🌟 核心魔法：高度设定为屏幕高度减去边距 (calc(100vh - 40px))，
 					// 这样用户滚到这里时，它会完美霸占整个屏幕视野，给画板最大的操作空间！
-					style={{ width: '100%', maxWidth: '2100px', height: 'calc(82vh - 40px)', minHeight: '800px', marginBottom: '50px' }}
+					style={{ width: '100%', maxWidth: '2100px', height: 'calc(81vh - 40px)', minHeight: '800px', marginBottom: '50px' }}
 				>
 					
 					{/* 左：核心动效参数 (内部独立滚动) */}
@@ -68,12 +68,15 @@ export default function AEModePanel() {
 
 				</Flex>
 
-				<Separator size="4" style={{ width: '100%', maxWidth: '1800px', marginBottom: '40px' }} />
+				{/* 🚀 高亮横幅分割线，制造明显的视觉断层 */}
+				<Flex direction="column" align="center" style={{ width: '100%', maxWidth: '1800px', marginBottom: '30px' }}>
+					<Separator size="4" style={{ width: '100%', height: '3px', backgroundColor: 'var(--indigo-5)', marginBottom: '20px' }} />
+					<Text weight="bold" size="6" color="indigo" style={{ display: 'block', letterSpacing: '1px' }}>🤖 进阶模式：AI 特效组装与导出台</Text>
+					<Text size="3" color="gray" mt="2">在此处，你可以将上面画板里的“运动轨迹”与 AI 写的“特效脚本”强强联手，打包成终极 JSX 文件。</Text>
+				</Flex>
 
 				{/* 🚀 【下】AI 提示词生成工作台 */}
 				<Box style={{ width: '100%', maxWidth: '1800px', marginBottom: '60px' }}>
-					<Text weight="bold" size="4" color="indigo" mb="3" style={{ display: 'block' }}>🤖 AI 提示词生成工作台</Text>
-					{/* 解除高度限制，让它自由向下生长 */}
 					<AEPromptStation userDescription={userDescription} setUserDescription={setUserDescription} enableEffects={enableEffects} setEnableEffects={setEnableEffects} />
 				</Box>
 

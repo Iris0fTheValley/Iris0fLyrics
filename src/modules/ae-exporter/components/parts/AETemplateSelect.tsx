@@ -143,18 +143,19 @@ export default function AETemplateSelect({ enableEffects, setEnableEffects }: AE
 			
 			<Card size="2" variant="surface">
 				<Flex direction="column" gap="3" height="100%">
-					<Text weight="bold" size="3">🚀 1. 渲染导出台</Text>
+					<Box>
+						<Text weight="bold" size="3" style={{ display: 'block' }}>🚀 基础模式：纯净数据导出台</Text>
+						<Text size="2" color="gray">此按钮仅导出纯净的运动轨迹与排版，不包含任何下方生成的 AI 特效代码。</Text>
+					</Box>
 					<Flex direction="column" gap="3" justify="center" style={{ flex: 1 }}>
 						<Select.Root value={selectedId} onValueChange={setSelectedId}>
 							<Select.Trigger style={{ width: '100%' }} />
 							<Select.Content>{templates.map((tpl) => (<Select.Item key={tpl.id} value={tpl.id}>{tpl.name}</Select.Item>))}</Select.Content>
 						</Select.Root>
-						<Flex gap="2" align="center">
-							<Switch size="1" color="indigo" checked={enableEffects} onCheckedChange={setEnableEffects} style={{ cursor: 'pointer' }} />
-							<Text size="2" color="gray">✨ 附带内置特效渲染 (如全局发光)</Text>
-						</Flex>
+						
+						{/* 之前的特效开关已经移除，直接贴合导出按钮，极致纯净 */}
 						<Button size="3" color="jade" variant="solid" style={{ cursor: 'pointer', width: '100%', marginTop: 'auto' }} onClick={handleGenerate}>
-							⚡ 编译节点数据并导出 JSX
+							⚡ 仅导出纯净节点 JSX
 						</Button>
 					</Flex>
 				</Flex>
@@ -162,7 +163,10 @@ export default function AETemplateSelect({ enableEffects, setEnableEffects }: AE
 
 			<Card size="2" variant="surface">
 				<Flex direction="column" height="100%">
-					<Text weight="bold" size="3" mb="2">📂 2. 模板引擎管理</Text>
+					<Box mb="2">
+						<Text weight="bold" size="3" style={{ display: 'block' }}>📂 基础模式：预设模板管理</Text>
+						<Text size="2" color="gray">管理你的纯净底座模板（含空间排版数据）。</Text>
+					</Box>
 					<Box 
 						onDrop={handleDropLocal} onDragOver={handleDragOverLocal} onDragLeave={handleDragLeaveLocal} onClick={handleFileClick}
 						style={{ cursor: 'pointer', border: `2px dashed ${isDragging ? 'var(--accent-9)' : 'var(--gray-7)'}`, borderRadius: '6px', padding: '10px', textAlign: 'center', backgroundColor: isDragging ? 'var(--accent-3)' : 'transparent', transition: 'all 0.2s', marginBottom: '10px' }}
