@@ -235,7 +235,7 @@ ${effectPrompt || '无需特效。'}
 				<Flex direction="column" gap="3">
 					<Flex justify="between" align="center">
 						<Text weight="bold" size="3" color="jade">⚡ 第二步：粘贴代码，合体导出或入库！</Text>
-						<Text size="2" color="gray">将 AI 生成代码贴在下方即可生效</Text>
+						<Text size="2" color="gray">将 AI 生成代码贴在下方即可生效（输入单个函数也能工作，另一个函数为空会被略过）</Text>
 					</Flex>
 					
 					<TextArea 
