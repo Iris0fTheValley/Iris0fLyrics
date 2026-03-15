@@ -5,7 +5,6 @@ import { toast } from 'react-toastify';
 
 // 这里存放原本在 AEModePanel 里的巨长文本
 const HUMAN_GUIDE_TEXT = `📄 文档一：AMLL AE 特效模板开发指南...（请替换为完整文本）`;
-const AI_PROMPT_TEXT = `你现在是一位资深的 After Effects ExtendScript 开发专家...（请替换为完整文本）`;
 
 export default function AEHeader() {
 	const { t } = useTranslation();

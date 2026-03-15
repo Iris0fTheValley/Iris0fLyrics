@@ -1,5 +1,5 @@
 // 文件路径：src/modules/ae-exporter/components/parts/AEPromptStation.tsx
-import { Box, Button, Card, Flex, Grid, Text, TextArea, TextField, Select } from '@radix-ui/themes';
+import { Box, Button, Card, Flex, Grid, Text, TextArea, TextField } from '@radix-ui/themes';
 import { useAtom, useStore } from 'jotai';
 import { atomWithStorage } from 'jotai/utils';
 import { useState, useEffect } from 'react';
