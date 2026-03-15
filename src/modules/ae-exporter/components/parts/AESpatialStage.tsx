@@ -8,8 +8,8 @@ import { activeNodeIdAtom, activeTrackIdAtom, spatialDataAtom, spatialDataMapAto
 import AENode from './AENode';
 import { getRoleColors } from './AENodeToolbar';
 import AETransitionCanvasPoint from './AETransitionCanvasPoint'; // 🌟 引入新组件
-
-type ExtendedConfig = { width?: number; height?: number; };
+import AEMathTrajectory from './AEMathTrajectory'; // 🌟 引入数学轨迹组件
+type ExtendedConfig = { width?: number; height?: number; mathEquation?: string; mathScale?: number; mathRot?: number; mathOffsetX?: number; mathOffsetY?: number; };
 
 export default function AESpatialStage() {
 	const [data, setData] = useAtom(spatialDataAtom);
@@ -21,8 +21,8 @@ export default function AESpatialStage() {
 	const [, setActiveNodeId] = useAtom(activeNodeIdAtom);
 	
 	const [rawConfig] = useAtom(aeConfigAtom);
-	// 🌟 补上 previewScale 类型定义
-	const config = rawConfig as typeof rawConfig & ExtendedConfig & { previewScale?: number | string };
+	// 🌟 补上 previewScale 和 mathEquation 的类型定义
+	const config = rawConfig as typeof rawConfig & ExtendedConfig & { previewScale?: number | string; mathEquation?: string; };
 	const stageWidth = config.width || 1920;
 	const stageHeight = config.height || 1080;
 	const isLandscape = stageWidth >= stageHeight;
@@ -237,6 +237,9 @@ export default function AESpatialStage() {
 					<svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible', zIndex: 0 }}>
 						<line x1="50%" y1="0%" x2="50%" y2="100%" stroke="var(--accent-a7)" strokeWidth="1" strokeDasharray="6 6" />
 						<line x1="0%" y1="50%" x2="100%" y2="50%" stroke="var(--accent-a7)" strokeWidth="1" strokeDasharray="6 6" />
+						
+						{/* 🌟 渲染数学公式轨迹 */}
+						<AEMathTrajectory equation={config.mathEquation} scale={config.mathScale || 1} rot={config.mathRot || 0} offsetX={config.mathOffsetX || 0} offsetY={config.mathOffsetY || 0} />
 
 						{Object.entries(dataMap).map(([rId, roleData]) => {
 							const colors = getRoleColors(rId);

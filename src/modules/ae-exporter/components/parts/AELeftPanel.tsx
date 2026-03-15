@@ -1,5 +1,6 @@
 // 文件路径：src/modules/ae-exporter/components/parts/AELeftPanel.tsx
-import { Box, Flex, Select, Text, TextField, Slider, Tooltip, Separator } from '@radix-ui/themes';
+/** biome-ignore-all lint/suspicious/noExplicitAny: <explanation> */
+import { Box, Flex, Select, Text, TextField, Slider, Tooltip, Separator, Switch, Button } from '@radix-ui/themes';
 import { useAtom } from 'jotai';
 
 import { aeConfigAtom } from '$/states/aeConfig';
@@ -11,7 +12,15 @@ type ExtendedConfig = {
 	renderThreshold?: number;
 	animDuration?: number;
 	layoutMode?: 'horizontal' | 'vertical'; 
-	previewScale?: number | string; // 🌟 新增：画板外延视野缩放比例 (允许 string 是为了防卡死)
+	previewScale?: number | string;
+	mathEquation?: string;     
+	enableMathSnap?: boolean;  
+	mathScale?: number;        
+	mathRot?: number;          
+	mathSnapFlip?: boolean;    // 🌟 新增：切换贴合基准边
+	mathOffsetX?: number;      // 🌟 新增：X轴偏移
+	mathOffsetY?: number;      // 🌟 新增：Y轴偏移
+	mathSnapInvert?: boolean;
 };
 
 export default function AELeftPanel() {
@@ -135,6 +144,99 @@ export default function AELeftPanel() {
 					</Flex>
 				</Box>
 			</Tooltip>
+
+			<Separator size="4" mt="1" mb="1" />
+
+			{/* 🌟 进阶引擎：数学轨迹发生器 */}
+			<Box style={{ backgroundColor: 'var(--jade-2)', padding: '12px', borderRadius: '8px', border: '1px solid var(--jade-6)' }}>
+				
+				{/* 🌟 修复：顶部恢复极简，只保留标题和磁吸开关 */}
+				<Flex justify="between" align="end" mb="2">
+					<Text size="2" color="jade" weight="bold" style={{ display: 'block' }}>📐 数学函数轨迹</Text>
+					<Flex gap="2" align="center">
+						<Text size="1" color="gray">开启磁吸</Text>
+						<Switch size="1" color="jade" checked={config.enableMathSnap !== false} onCheckedChange={(v) => updateConfig('enableMathSnap' as any, v as any)} />
+					</Flex>
+				</Flex>
+
+				{/* 方程输入框 */}
+				<TextField.Root 
+					placeholder="例如: y=0.05(x-50)^2+20" 
+					value={config.mathEquation || ''} 
+					onChange={(e) => updateConfig('mathEquation', e.target.value)} 
+					style={{ fontFamily: 'monospace' }}
+				/>
+				<Text size="1" color="gray" mt="1" style={{ display: 'block', lineHeight: 1.4 }}>
+					兼容标准数学方程或 JS 语法，变量为 x (0~100)。<br/>
+					抛物线: <code>y = 0.05(x-50)^2 + 20</code><br/>
+					正弦波: <code>y = sin(x * 0.1) * 20 + 50</code>
+				</Text>
+
+				{/* 缩放、旋转、位移与基准边控制杆 */}
+				<Flex direction="column" gap="2" mt="3" style={{ borderTop: '1px solid var(--jade-5)', paddingTop: '10px' }}>
+					
+					<Flex gap="3" align="center">
+						<Text size="1" color="gray" style={{ width: 25 }}>X 轴</Text>
+						<Slider size="1" min={-100} max={100} step={1} value={[config.mathOffsetX || 0]} onValueChange={([v]) => updateConfig('mathOffsetX', v)} style={{ flex: 1 }} />
+						<TextField.Root size="1" type="number" step={1} value={config.mathOffsetX !== undefined ? config.mathOffsetX : 0} onChange={(e) => updateConfig('mathOffsetX', parseFloat(e.target.value))} style={{ width: '60px' }} />
+						<Text size="1" color="gray" style={{ width: 10 }}>%</Text>
+					</Flex>
+
+					<Flex gap="3" align="center">
+						<Text size="1" color="gray" style={{ width: 25 }}>Y 轴</Text>
+						<Slider size="1" min={-100} max={100} step={1} value={[config.mathOffsetY || 0]} onValueChange={([v]) => updateConfig('mathOffsetY', v)} style={{ flex: 1 }} />
+						<TextField.Root size="1" type="number" step={1} value={config.mathOffsetY !== undefined ? config.mathOffsetY : 0} onChange={(e) => updateConfig('mathOffsetY', parseFloat(e.target.value))} style={{ width: '60px' }} />
+						<Text size="1" color="gray" style={{ width: 10 }}>%</Text>
+					</Flex>
+
+					<Flex gap="3" align="center">
+						<Text size="1" color="gray" style={{ width: 25 }}>大小</Text>
+						<Slider size="1" min={0.1} max={5} step={0.1} value={[config.mathScale || 1]} onValueChange={([v]) => updateConfig('mathScale', v)} style={{ flex: 1 }} />
+						<TextField.Root size="1" type="number" step={0.1} value={config.mathScale !== undefined ? config.mathScale : 1} onChange={(e) => updateConfig('mathScale', parseFloat(e.target.value))} style={{ width: '60px' }} />
+						<Text size="1" color="gray" style={{ width: 10 }}>x</Text>
+					</Flex>
+
+					<Flex gap="3" align="center">
+						<Text size="1" color="gray" style={{ width: 25 }}>旋转</Text>
+						<Slider size="1" min={-180} max={180} step={1} value={[config.mathRot || 0]} onValueChange={([v]) => updateConfig('mathRot', v)} style={{ flex: 1 }} />
+						<TextField.Root size="1" type="number" step={1} value={config.mathRot !== undefined ? config.mathRot : 0} onChange={(e) => updateConfig('mathRot', parseFloat(e.target.value))} style={{ width: '60px' }} />
+						<Text size="1" color="gray" style={{ width: 10 }}>°</Text>
+					</Flex>
+
+					<Flex gap="3" align="center" mt="2">
+						<Text size="1" color="gray" style={{ width: 60 }}>贴合基准</Text>
+						<Flex align="center" gap="2">
+							<Text size="1" color={!config.mathSnapFlip ? 'jade' : 'gray'}>宽边(平行)</Text>
+							<Switch size="1" color="jade" checked={config.mathSnapFlip === true} onCheckedChange={(v) => updateConfig('mathSnapFlip' as any, v as any)} />
+							<Text size="1" color={config.mathSnapFlip ? 'jade' : 'gray'}>高边(穿透)</Text>
+						</Flex>
+					</Flex>
+
+					{/* 🌟 新增：吸附方向（翻转 180 度） */}
+					<Flex gap="3" align="center" mt="2">
+						<Text size="1" color="gray" style={{ width: 60 }}>吸附方向</Text>
+						<Flex align="center" gap="2">
+							<Text size="1" color={!config.mathSnapInvert ? 'jade' : 'gray'}>正向</Text>
+							<Switch size="1" color="jade" checked={config.mathSnapInvert === true} onCheckedChange={(v) => updateConfig('mathSnapInvert' as any, v as any)} />
+							<Text size="1" color={config.mathSnapInvert ? 'jade' : 'gray'}>反向(翻转)</Text>
+						</Flex>
+					</Flex>
+
+					<Button size="2" variant="soft" color="jade" style={{ cursor: 'pointer', width: '100%', marginTop: '8px' }} onClick={() => {
+						updateConfig('mathEquation', '');
+						updateConfig('mathScale', 1);
+						updateConfig('mathRot', 0);
+						updateConfig('mathOffsetX', 0);
+						updateConfig('mathOffsetY', 0);
+						updateConfig('mathSnapFlip' as any, false);
+						updateConfig('mathSnapInvert' as any, false); // 🌟 重置新增的翻转状态
+						updateConfig('enableMathSnap' as any, true);
+					}}>
+						↺ 恢复默认设置
+					</Button>
+
+				</Flex>
+			</Box>
 
 		</Flex>
 	);
