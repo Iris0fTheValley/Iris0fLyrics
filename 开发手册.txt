@@ -1,0 +1,557 @@
+Iris0fLyrics 开发手册（完整修订版）
+1. 项目概述
+Iris0fLyrics 是一款基于 Web 技术的一站式 TTML 歌词编辑器，支持逐字着色、色彩资产库、空间节点可视化编排、AI 辅助 After Effects 脚本生成等功能。项目采用 React + TypeScript + Vite 构建前端，使用 Jotai 管理状态，Radix UI 提供基础组件，Framer Motion 实现动画，Wavesurfer.js 渲染音频波形，并通过 Tauri 打包为桌面应用。
+
+2. 技术栈
+类别	技术
+核心框架	React 19, TypeScript 5.9
+构建工具	Vite 7
+状态管理	Jotai 2.16 (with immer, history, optics)
+UI 组件库	Radix UI, Fluent UI React Icons
+动画	Framer Motion 12
+音频处理	Web Audio API, Wavesurfer.js, 自定义 Web Worker
+频谱图	自研 Wasm 模块 (基于 Aegisub 算法)
+歌词核心	@applemusic-like-lyrics 系列包
+国际化和多语言	i18next, i18next-parser
+持久化	localStorage, IndexedDB (idb)
+快捷键	自定义 hook + localStorage
+分词	hyphen 库 + 自定义算法
+桌面端	Tauri 2 (Rust 后端)
+错误监控	Sentry
+分析	Vercel Analytics, Speed Insights
+3. 目录结构
+text
+src/
+├── components/          # 通用UI组件（标题栏、功能区、对话框等）
+├── hooks/               # 自定义React钩子（颜色、文件打开、光标注入等）
+├── i18n/                # 国际化配置
+├── modules/             # 核心功能模块（按领域拆分）
+│   ├── ae-exporter/     # AE导出模块（空间节点引擎、模板管理、AI辅助）
+│   ├── audio/           # 音频播放、解码、波形图
+│   ├── keyboard/        # 键盘快捷键系统
+│   ├── lrclib/          # LRCLIB 歌词导入
+│   ├── lyric-editor/    # 歌词行/单词编辑、打轴
+│   ├── project/         # 项目文件操作（自动保存、历史、元数据）
+│   ├── segmentation/    # 分词功能（高级分词、罗马音分配）
+│   ├── settings/        # 用户设置（常规、快捷键、频谱图、关于）
+│   └── spectrogram/     # 频谱图可视化（基于 Wasm 的瓦片渲染）
+├── states/              # Jotai 全局原子定义（按功能拆分）
+├── types/               # TypeScript 类型定义（TTML 数据结构）
+├── utils/               # 工具函数（时间戳转换、日志、快捷键绑定等）
+├── App.tsx              # 主应用布局与错误边界
+├── main.tsx             # 入口文件
+4. 核心模块详解
+4.1 歌词编辑模块 (lyric-editor)
+功能：歌词行/单词的增删改查、时间轴显示、编辑模式下的各种操作。
+
+关键文件：
+
+components/index.tsx：LyricLinesView 组件，负责渲染整个歌词列表，使用 react-viewport-list 实现虚拟滚动。
+
+components/lyric-line-view.tsx：LyricLineView 组件，渲染单行歌词，包含单词列表、翻译行、音译行，支持拖拽排序。
+
+components/lyric-word-view.tsx：LyricWordView 组件，渲染单个单词，根据模式（简单/高级）显示不同的编辑控件。
+
+components/roman-word-view.tsx：RomanWordView 组件，显示/编辑单词的罗马音。
+
+components/lyric-line-menu.tsx：歌词行右键菜单。
+
+components/lyric-word-menu.tsx：单词右键菜单。
+
+components/sync-keybinding.tsx：SyncKeyBinding 组件，监听打轴快捷键并更新歌词时间戳。
+
+utils/lyric-states.ts：提供获取当前选中位置、查找下一个单词等辅助函数。
+
+utils/normalize-line-time.ts：根据单词时间戳重新计算行开始/结束时间。
+
+tools/ReplaceWordDialog.tsx：替换单词对话框。
+
+tools/TimeShift.tsx：批量平移时间对话框。
+
+重要函数：
+
+useCurrentLocation()：获取当前选中的行和单词信息。
+
+findNextWord()：查找下一个可打轴的单词。
+
+normalizeLineTime()：同步行时间与单词时间。
+
+handleKeyDown 在 sync-keybinding.tsx 中处理 F/G/H 等打轴按键。
+
+技术实现：
+
+使用 jotai 管理歌词数据 (lyricLinesAtom) 和选择状态 (selectedLinesAtom, selectedWordsAtom)。
+
+支持拖拽排序（基于原生 Drag & Drop API）。
+
+单词编辑支持纯文本输入或高级模式（每个属性独立输入框）。
+
+行号显示逻辑：背景行不递增行号，主行才递增。
+
+4.2 音频控制与频谱图 (audio + spectrogram)
+功能：音频文件加载、播放控制、波形图、频谱图渲染、试听选区。
+
+关键文件：
+
+audio/audio-engine.ts：AudioEngine 单例，封装 Web Audio API，提供播放、暂停、音量、速度、试听等功能。
+
+audio/components/index.tsx：AudioControls 组件，包含加载按钮、播放/暂停、音量/速度滑块、波形图、频谱图展开。
+
+audio/components/AudioSlider.tsx：AudioSlider 组件，基于 Wavesurfer.js 渲染波形图，支持缩放、拖拽选择区域。
+
+audio/components/AudioRegion.tsx：波形图上的选中区域。
+
+audio/components/HoverGuide.tsx：鼠标悬停时显示时间提示。
+
+audio/hooks/useAudioRegion.ts：管理波形图上的选中区域（对应歌词视图）。
+
+audio/hooks/useHoverGuide.ts：管理鼠标悬停状态。
+
+audio/workers/audio.worker.ts：音频解码和转码的 Web Worker。
+
+audio/workers/audio-worker-client.ts：Worker 客户端，封装通信。
+
+spectrogram/ 模块基于 Wasm 生成频谱图瓦片，使用 Web Worker 并行计算。
+
+spectrogram/components/AudioSpectrogram.tsx：主频谱图组件。
+
+spectrogram/components/TileComponent.tsx：单个瓦片渲染组件。
+
+spectrogram/components/TimelineRuler.tsx：时间标尺。
+
+spectrogram/components/LyricTimelineOverlay.tsx：歌词行在频谱图上的覆盖层。
+
+spectrogram/hooks/useSpectrogramWorker.ts：管理频谱图瓦片请求和缓存。
+
+spectrogram/hooks/useSpectrogramInteraction.ts：处理缩放、滚动交互。
+
+spectrogram/hooks/useTimelineEditing.ts：处理在频谱图上拖动时间线。
+
+spectrogram/workers/spectrogram.worker.ts：频谱图生成 Worker。
+
+spectrogram/vendor/：自研 Wasm 频谱图库。
+
+重要函数：
+
+audioEngine.loadMusic()：加载音频文件，支持转码降级。
+
+audioEngine.auditionRange()：试听指定时间范围。
+
+useSpectrogramWorker()：管理频谱图瓦片请求和缓存。
+
+generate_spectrogram_image()（Wasm）：生成单张频谱图瓦片。
+
+useSpectrogramInteraction()：处理缩放和滚动，并平滑动画。
+
+技术实现：
+
+音频解码失败时，通过 Web Worker 转码为 WAV 再尝试。
+
+频谱图使用 wasm-spectrogram 库（自研），基于 Aegisub 算法，支持多线程。
+
+频谱图滚动采用虚拟化，只渲染视口内的瓦片。
+
+试听光标通过 requestAnimationFrame 同步更新。
+
+4.3 打轴与快捷键 (keyboard)
+功能：全局键盘快捷键注册与触发，打轴命令管理。
+
+关键文件：
+
+keyboard/commands.ts：定义所有快捷键命令，如 cmdSyncStart、cmdMoveNextWord 等，使用 registerCommand 注册。
+
+keyboard/registry.ts：存储所有命令的 Map，并提供 registerCommand 函数。
+
+keyboard/hooks.ts：useCommand 钩子，用于在组件中绑定命令回调。
+
+keyboard/components/SettingsPanel.tsx：快捷键设置面板，允许用户自定义按键。
+
+keyboard/components/AuditionKeyBinding.tsx：试听快捷键绑定（播放选中片段前后）。
+
+utils/keybindings.ts：底层快捷键监听、格式化、录制功能。
+
+重要函数：
+
+registerCommand()：创建命令并存储到全局注册表。
+
+useCommand()：订阅命令，内部调用 useKeyBinding。
+
+recordShortcut()：捕获用户按键组合。
+
+forceInvokeKeyBindingAtom()：用于触屏按钮触发快捷键。
+
+技术实现：
+
+基于 localStorage 持久化用户自定义按键。
+
+使用 Map 存储命令与回调，全局监听 keydown/keyup 事件。
+
+支持 KeyDown / KeyUp 两种触发时机。
+
+4.4 颜色系统 (ColorToolbar, ColorLibrary, useColorAssets, useCursorInjection)
+功能：提供悬浮调色工具栏，支持颜色拾取、预设、资产库管理，以及光标处智能插入颜色标记。
+
+关键文件：
+
+components/ColorToolbar/index.tsx：ColorToolbar 组件，可拖拽的调色工具栏。
+
+components/ColorLibrary/index.tsx：ColorLibrary 组件，颜色资产库管理（文件夹、100个色槽）。
+
+hooks/useColorAssets.ts：封装颜色资产库的读写操作（基于 colorSystemAtom）。
+
+hooks/useCursorInjection.ts：提供 insertAtCursor 和 wrapSelection 函数，用于智能插入颜色标记到当前输入框。
+
+重要函数：
+
+useColorAssets()：返回 saveColorToSlot、addFolder、deleteFolder 等方法。
+
+insertAtCursor(text)：根据当前光标位置智能替换或插入颜色代码。
+
+wrapSelection(before, after)：为选中文本添加包裹符（如 {}）。
+
+handleImageUpload（在 ColorLibrary 中）：从上传图片中提取主色调。
+
+技术实现：
+
+颜色数据存储在 localStorage 中的 amll_color_assets 键。
+
+图片颜色提取使用 Canvas 量化算法，无额外依赖。
+
+光标注入通过劫持 input 和 textarea 的原生 setter，实时更新值并保持光标位置。
+
+4.5 AE 导出模块 (ae-exporter)
+功能概述
+将歌词数据转换为 After Effects 可执行的 JSX 脚本，支持空间节点可视化编排、多角色平行宇宙、AI 插件钩子。近期新增了数学函数轨迹生成、智能吸附与角度校正、预览逻辑重写及界面优化，大幅提升动效设计的灵活性和精确度。
+
+关键文件
+components/AEModePanel.tsx：AE 导出主界面，包含模板选择、空间画布、参数实验室、AI 工作台。
+
+components/parts/AEHeader.tsx：顶部标题栏，仅保留“开发者指南”按钮（已移除“基础提示词”）。
+
+components/parts/AELeftPanel.tsx：左侧参数面板，用于设置分辨率、文本排版、动画时长等硬编码参数；新增数学函数轨迹控制区域（方程输入、缩放/旋转/平移滑块、贴合基准/方向翻转开关、“恢复默认”按钮）。
+
+components/parts/AENode.tsx：单个可拖拽节点，集成 react-moveable，增强磁吸能力（中线吸附、屏幕长宽比角度校正）。
+
+components/parts/AENodeToolbar.tsx：右侧节点属性面板，管理轨道、节点、转场规则，提供“轨迹魔法”等功能；新增 handleAddUniqueNode 函数，为一键生成“入场/焦点/离场”节点提供按钮。
+
+components/parts/AEParamLab.tsx：参数实验室，提供滑块和输入框实时调整动效参数，并实时预览。
+
+components/parts/AEPreviewBoard.tsx：预览画板，模拟 AE 的滚动、景深衰减、时间裁剪。
+
+components/parts/AEPromptStation.tsx：AI 提示词生成和插件代码粘贴区域。
+
+components/parts/AESpatialPreview.tsx：完全重写的空间预览组件，根据当前时间和空间节点实时计算歌词位置并渲染，支持多句歌词同屏渲染，严格按照动画时长计算节点位置，完美复刻 AE 关键帧行为。
+
+components/parts/AESpatialStage.tsx：空间画布组件，渲染节点和连线，支持拖拽、旋转、吸附。
+
+components/parts/AETemplateSelect.tsx：模板选择与模板管理，移除了无用的“特效开关”，增加明确说明文字。
+
+components/parts/AETransitionCanvasPoint.tsx：画布上的转场控制点，允许拖动调整触发点，并弹出转场类型选择。
+
+components/parts/AETransitionToolbarCard.tsx：转场工具栏卡片，用于设置节点之间的转场规则（跟随/折角/延迟）。
+
+components/parts/AEMathTrajectory.tsx：新增组件，负责将数学方程渲染为虚线曲线，并提供 MathEngine 工具函数（方程解析、坐标变换、切线计算）。
+
+states/aeConfig.ts：AE 导出配置原子，包括合成尺寸、行间距、存活时间等；新增数学轨迹相关字段：
+
+typescript
+mathEquation?: string;      // 方程表达式
+enableMathSnap?: boolean;    // 是否开启磁吸
+mathScale?: number;          // 轨迹缩放
+mathRot?: number;            // 轨迹旋转
+mathOffsetX?: number;        // X轴偏移
+mathOffsetY?: number;        // Y轴偏移
+mathSnapFlip?: boolean;      // 贴合基准切换 (宽边/高边)
+mathSnapInvert?: boolean;    // 吸附方向翻转 (正向/反向)
+states/aeTemplates.ts：定义模板数据结构，内置三个模板（空间节点引擎、经典满血、性能超频）。
+
+states/spatial.ts：多角色空间数据原子 (spatialDataMapAtom, activeRoleIdAtom 等)，以及角色资产库 (roleSystemAtom)。
+
+重要函数
+数学轨迹引擎（位于 AEMathTrajectory.tsx）
+MathEngine.compile(rawExpr: string): Function | null：将人类数学表达式（如 y = 0.05(x-50)^2 + 20）转换为可执行 JS 函数，支持 ^ 转 **、隐式乘号补全、自动注入 Math 对象。
+
+MathEngine.evalY(expr: string, x: number): number | null：计算方程在给定 x 处的 y 值。
+
+MathEngine.getTangentRot(expr: string, x: number): number：通过微小差分求导数，得到切线角度（度）。
+
+MathEngine.globalToLocal(gx, gy, scale, rot, ox, oy)：将全局画布坐标（百分比）转换为数学局部坐标，考虑缩放、旋转和平移。
+
+MathEngine.localToGlobal(lx, ly, scale, rot, ox, oy)：逆转换。
+
+预览与计算
+calculateTrackState(line, track, currentTime, animDurationMs, visibleDurMs)（位于 AESpatialPreview.tsx）：新增核心函数，根据当前时间精确计算某一句歌词在指定轨道上的状态（位置、旋转、透明度、是否正在演唱），支持多句歌词同时存活，生命周期由动画时长控制。
+
+useSpatialMath（原预览插值函数，已被 calculateTrackState 替代，但仍保留用于兼容）。
+
+节点操作与轨迹魔法
+handleAddUniqueNode(type: 'in' | 'focus' | 'out')（位于 AENodeToolbar.tsx）：一键生成“入场/焦点/离场”节点，自动置于画布中心并展开属性面板。
+
+applyMagic()：实现克隆、镜像、旋转等轨迹魔法。
+
+syncAllFromMain()：将当前轨道的所有节点坐标与主轨道对齐。
+
+AI 与导出
+buildAMLLScript()：模板代码中必须暴露的函数，接收数据返回 JSX 字符串。
+
+handleExportWithAI()：将 AI 插件代码与模板合并导出。
+
+技术实现
+1. 空间节点与转场规则
+空间节点采用相对坐标（百分比），导出时转换为 AE 滑块控制，确保跨分辨率适配。
+
+支持“引流阀”和“分离轴”转场：通过 TransitionConfig 定义 type（follow/hold/delay）和 ratio，在导出时生成对应的关键帧插值逻辑，并在画布上通过 AETransitionCanvasPoint 组件可视化调整 ratio 触发点。
+
+2. 多角色数据管理
+多角色数据存储为字典 spatialDataMapAtom，键为角色 ID，值为该角色的空间数据（main/sub/ruby 轨道）。
+
+角色资产库 roleSystemAtom 存储文件夹和角色名称，支持多文件夹管理，与节点坐标数据分离，便于复用和切换。
+
+3. 数学函数轨迹
+方程解析：通过正则替换将 ^ 转为 **，补全隐式乘号（如 5(x) → 5*(x)），并自动注入 Math 对象；使用 new Function 动态生成函数并缓存，避免重复编译。
+
+坐标系转换：引入 globalToLocal / localToGlobal 函数，在节点拖拽时将全局百分比坐标转换为数学局部坐标进行吸附计算，再将吸附结果映射回全局坐标，同时考虑缩放、旋转和平移。
+
+角度校正：通过局部两点计算实际屏幕像素差，得出视觉角度，再叠加用户设置的 axisOffset（由 mathSnapFlip 决定 ±90°）和 mathSnapInvert（±180°），确保节点长边/高边正确贴合曲线，避免因屏幕长宽比导致的视觉扭曲。
+
+防卡顿优化：生成 SVG 路径时，若 y 值超出 [-150, 250] 范围则自动断笔，防止方程发散导致路径过长引发卡顿；使用 vectorEffect="non-scaling-stroke" 确保虚线粗细不随缩放变化。
+
+4. 预览重写
+calculateTrackState 根据轨道节点类型（in、preFocus、focus、postFocus、out）和动画时长，为每句歌词计算独立的“生命周期”时间轴。
+
+歌词的入场、演唱、退场阶段严格按照 animDurationMs 和 visibleDurMs 进行插值，允许多句歌词同时渲染，且正在演唱的歌词强制高亮（透明度 100%）。
+
+性能优化：通过 useMemo 缓存解析后的歌词文本，避免重复计算；仅对处于存活期的歌词进行渲染。
+
+5. 节点对齐增强
+修改 Moveable 组件参数，显式开启 snapDirections 和 elementSnapDirections 的 center 和 middle 属性，实现节点间水平/垂直中线吸附。
+
+为固定节点（入场/焦点/离场）提供“+ 加入”按钮，避免手动拖拽的繁琐操作。
+
+6. AI 插件隔离
+AI 生成的代码通过 new Function 动态执行，且只能访问导出的 ai_custom_easing 和 ai_custom_effects 钩子，无法影响核心模板逻辑，保证安全性。
+
+7. 界面优化
+移除顶部“基础提示词”按钮，保持标题居中对齐。
+
+顶部卡片增加说明文字，明确“纯净基础版”定位，并移除无用的“特效开关”。
+
+在空间画布与 AI 工作台之间添加醒目的分割线和标题，区分“基础模式”与“进阶模式”。
+
+数学轨迹控制区采用独立行布局（X轴、Y轴、大小、旋转各占一行），底部放置“恢复默认”按钮，提升操作直观性。
+
+8. 数据持久化
+所有配置（包括数学轨迹相关字段）均存储在 aeConfigAtom 中，并通过 atomWithStorage 自动持久化到 localStorage。
+4.6 分词模块 (segmentation)
+功能：将长单词自动拆分为多个音节，支持 CJK 字符拆分、西文按音节拆分、自定义规则。
+
+关键文件：
+
+utils/segmentation.ts：核心分词算法 segmentWord 和 segmentLyricLines。
+
+utils/Transliteration/distributor.ts：罗马音自动分配算法（基于锚点对齐）。
+
+utils/Transliteration/roman-warning.ts：检查罗马音一致性并标记警告。
+
+utils/Transliteration/tokenizer.ts：罗马音分词器。
+
+components/AdvancedSegmentation.tsx：高级分词对话框，允许用户配置规则和测试。
+
+components/ManualWordSplitter.tsx：手动分词器组件。
+
+states/index.ts：存储分词配置的原子（如 segmentationSplitCJKAtom）。
+
+utils/hyphen-loader.ts：异步加载 hyphen 分词器。
+
+重要函数：
+
+segmentWord(word, config)：将单个单词拆分为多个单词，并重新分配时间。
+
+predictLineRomanization(words, romanLyric)：将整行罗马音预测分配到每个单词。
+
+loadHyphenator(lang)：异步加载指定语言的 hyphen 分词器。
+
+applyRomanizationWarnings()：检查罗马音匹配并设置警告标记。
+
+技术实现：
+
+CJK 字符按字符拆分，西文利用 hyphen 库按音节拆分。
+
+标点符号处理支持合并或独立。
+
+自定义规则基于 Map 存储词到切分数组的映射。
+
+4.7 项目管理 (project)
+功能：文件打开/保存、自动保存、历史记录恢复、元数据编辑、导入/导出其他格式。
+
+关键文件：
+
+autosave/autosave.ts：基于 IndexedDB 的自动保存实现。
+
+autosave/AutosaveManager.tsx：自动保存管理器组件，监听歌词变化并触发保存。
+
+logic/ttml-parser.ts：解析 TTML 文件为内部数据结构（包含多角色解析）。
+
+logic/ttml-writer.ts：将内部数据结构序列化为 TTML 字符串（含颜色标记转换）。
+
+logic/project-info.ts：根据元数据生成项目显示名称。
+
+logic/project-match.ts：判断数据库项目与当前歌词是否匹配。
+
+modals/MetadataEditor.tsx：元数据编辑对话框，支持拖拽添加值。
+
+modals/HistoryRestore.tsx：历史版本恢复对话框。
+
+modals/ImportExportLyric.tsx：导入/导出其他格式歌词的子菜单。
+
+modals/ImportFromText.tsx：从纯文本导入歌词对话框。
+
+modals/GlobalDragOverlay.tsx：全局文件拖拽遮罩层。
+
+重要函数：
+
+parseLyric()：解析 TTML 文本。
+
+exportTTMLText()：导出 TTML 文本。
+
+autoSaveProject()：自动保存项目到 IndexedDB。
+
+getProjectList()：获取所有自动保存的项目列表。
+
+getSuggestedTtmlFileName()：根据元数据生成建议文件名。
+
+技术实现：
+
+使用 idb 库封装 IndexedDB 操作。
+
+历史记录基于 jotai-history 实现撤销/重做。
+
+自动保存定时触发，仅当有更改且超过间隔时间才创建新快照。
+
+4.8 设置模块 (settings)
+功能：用户偏好设置，包括常规（语言、布局、音量等）、快捷键、频谱图配色、关于页面。
+
+关键文件：
+
+modals/index.tsx：主设置对话框，包含标签页。
+
+modals/common.tsx：常规设置选项卡。
+
+modals/keybindings.tsx：快捷键设置选项卡（调用 AutoKeyBindingSettingsPanel）。
+
+modals/spectrogram.tsx：频谱图配色设置。
+
+modals/about.tsx：关于页面，显示版本、更新。
+
+modals/customBackground.tsx：自定义背景设置。
+
+states/index.ts：设置相关的原子（如 syncJudgeModeAtom, layoutModeAtom 等）。
+
+重要函数：
+
+useAppUpdate()：检查并安装 Tauri 应用更新。
+
+技术实现：
+
+设置使用 atomWithStorage 持久化到 localStorage。
+
+快捷键设置通过 recordShortcut 录制并保存。
+
+4.9 全局状态 (states)
+功能：定义所有 Jotai 原子，管理应用全局状态。
+
+关键文件：
+
+main.ts：核心歌词数据、选择状态、工具模式、项目 ID 等。
+
+keybindings.ts：快捷键配置原子（兼容旧代码，转发到 keyboard 模块）。
+
+spatial.ts：多角色空间数据原子 (spatialDataMapAtom, activeRoleIdAtom 等)。
+
+aeConfig.ts：AE 导出配置。
+
+aeTemplates.ts：AE 模板列表。
+
+colorSystem.ts：颜色资产库数据。
+
+dialogs.ts：对话框打开状态。
+
+previewMode.ts：预览模式切换。
+
+update.ts：应用更新状态。
+
+store.ts：全局 store 实例。
+
+技术实现：
+
+原子通过 atom 或 atomWithStorage 创建。
+
+使用 useAtom 在组件中读写。
+
+4.10 工具函数 (utils)
+功能：通用工具函数。
+
+关键文件：
+
+timestamp.ts：时间戳与格式化字符串转换。
+
+logging.ts：开发/生产环境日志控制。
+
+keybindings.ts：快捷键底层实现。
+
+parse-lrc.ts：LRC 解析。
+
+useAppUpdate.ts：Tauri 更新钩子。
+
+pwa.tsx：PWA 注册和更新提示。
+
+5. 重要函数与钩子汇总
+函数/钩子	所属模块	作用
+useLyricColorizer	hooks	监听 DOM 变化，将颜色标记渲染为实际颜色
+useCursorInjection	hooks	提供光标处插入/包裹文本的能力
+useColorAssets	hooks	颜色资产库的 CRUD 操作
+useCommand	keyboard	绑定快捷键命令
+useSpectrogramWorker	spectrogram	管理频谱图瓦片生成和缓存
+segmentWord	segmentation	核心分词算法
+predictLineRomanization	segmentation	罗马音自动分配
+buildAMLLScript	ae-exporter (模板)	模板必须实现的导出函数
+applyMagic	ae-exporter	轨迹魔法（克隆/镜像/旋转）
+useSpatialMath	ae-exporter	根据时间插值计算空间节点位置
+parseLyric	project	TTML 解析
+exportTTMLText	project	TTML 序列化（含颜色标记转换）
+autoSaveProject	project	自动保存到 IndexedDB
+recordShortcut	utils/keybindings	录制用户按键组合
+handleExportWithAI	ae-exporter/AEPromptStation	合并 AI 插件代码并导出 JSX
+syncAllFromMain	ae-exporter/AENodeToolbar	子轨道节点与主轨道对齐
+6. 外部依赖说明
+依赖	用途
+@applemusic-like-lyrics/*	歌词核心数据结构与渲染组件
+@radix-ui/themes	UI 组件库
+jotai	状态管理
+immer	不可变更新辅助
+framer-motion	动画
+wavesurfer.js	波形图渲染
+hyphen	西文音节拆分
+wanakana	日文假名-罗马音转换
+idb	IndexedDB 封装
+react-moveable	节点拖拽旋转
+tauri	桌面应用打包
+vite-plugin-wasm	支持 Wasm 模块
+workbox	PWA 离线支持
+7. 开发注意事项
+颜色标记转换：导出 TTML 时，exportTTMLText 会智能将 #RRGGBB 和 {文本#RRGGBB} 转换为标准 tts:color 属性。
+
+多角色兼容性：歌词行新增 role 字段，默认为 "1"，旧文件解析时也会兼容 isDuet 和 ttm:agent。
+
+性能优化：频谱图使用虚拟滚动和瓦片缓存；歌词列表虚拟滚动；Jotai 原子细粒度订阅。
+
+快捷键冲突：所有快捷键在输入框/可编辑元素内默认禁用，通过 isEditing 判断。
+
+自动保存：基于项目 ID 聚合历史版本，保存间隔和保留数量可在设置中调整。
+
+空间节点数据持久化：spatialDataMapAtom 与角色资产库分离，角色资产库存储在 roleSystemAtom 中，节点坐标存储在 spatialDataMapAtom 中（均使用 atomWithStorage）。
+
+转场规则：TransitionConfig 中的 ratio 字段用于延迟转场的触发点，在画布上通过 AETransitionCanvasPoint 组件可视化调整。
+
+AI 插件隔离：AI 生成的代码通过 new Function 动态执行，且只能访问导出的 ai_custom_easing 和 ai_custom_effects 钩子，无法影响核心模板逻辑。
+
