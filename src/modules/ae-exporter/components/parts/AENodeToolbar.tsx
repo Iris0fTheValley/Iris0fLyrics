@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Box, Card, Flex, Text, TextField, SegmentedControl, Slider, Button, Tooltip, Switch, Popover, Select } from '@radix-ui/themes';
 import { useAtom, useAtomValue } from 'jotai';
 import { activeTrackIdAtom, activeNodeIdAtom, lockSubNodeDragAtom, spatialDataAtom, spatialDataMapAtom, activeRoleIdAtom, roleSystemAtom, type SpatialNode, type TrackSpatial } from '$/states/spatial';
+import { aeConfigAtom } from '$/states/aeConfig'; // 🌟 新增：引入画板配置获取长宽比例
 import AETransitionToolbarCard from './AETransitionToolbarCard';
 
 export const getRoleColors = (roleId: string) => {
@@ -20,6 +21,7 @@ export const getRoleColors = (roleId: string) => {
 export default function AENodeToolbar() {
 	const [data, setData] = useAtom(spatialDataAtom);
 	const dataMap = useAtomValue(spatialDataMapAtom); 
+	const aeConfig = useAtomValue(aeConfigAtom); // 🌟 新增：读取画板分辨率配置
 
 	const [activeTrackId, setActiveTrackId] = useAtom(activeTrackIdAtom);
 	const [, setActiveNodeId] = useAtom(activeNodeIdAtom); 
@@ -108,11 +110,39 @@ export default function AENodeToolbar() {
 
 		if (!targetNode) return;
 
-		const yOffset = activeTrackId === 'sub' ? 10 : -10; 
 		setData(prev => {
 			const next = { ...prev };
 			const track = { ...next[activeTrackId] };
-			const updateNode = (n: SpatialNode) => n.id === id ? { ...n, x: targetNode.x, y: Number(targetNode.y) + yOffset, rot: targetNode.rot, width: targetNode.width, height: targetNode.height, transition: targetNode.transition } : n;
+			
+			const updateNode = (n: SpatialNode) => {
+				if (n.id !== id) return n;
+				
+				// 1. 计算边框完美贴合所需的中心物理距离 (像素)
+				const gapPx = 0; // 0 表示边缘完全贴合。如果想要缝隙，可以改为 4 或 8
+				const centerDistPx = (Number(targetNode.height) / 2) + (Number(n.height) / 2) + gapPx;
+				
+				// 2. 根据轨道类型决定方向 (sub 在主歌词下方，ruby 在上方)
+				const offsetPx = activeTrackId === 'sub' ? centerDistPx : -centerDistPx;
+				
+				// 3. 三角函数：将垂直方向的偏移，按照主歌词的旋转角度分解为真实的 X 和 Y 像素偏移
+				const rad = Number(targetNode.rot) * (Math.PI / 180);
+				const globalDxPx = -offsetPx * Math.sin(rad);
+				const globalDyPx = offsetPx * Math.cos(rad);
+				
+				// 4. 将真实的像素偏移转换回画板的百分比坐标
+				const dxPercent = (globalDxPx / aeConfig.compWidth) * 100;
+				const dyPercent = (globalDyPx / aeConfig.compHeight) * 100;
+
+				return { 
+					...n, 
+					x: Number(targetNode.x) + dxPercent, 
+					y: Number(targetNode.y) + dyPercent, 
+					rot: targetNode.rot, 
+					// 🌟 注意：我们删除了对 width 和 height 的强行覆盖，让子节点保留自己的大小
+					transition: targetNode.transition 
+				};
+			};
+
 			if (track.in) track.in = updateNode(track.in);
 			if (track.focus) track.focus = updateNode(track.focus);
 			if (track.out) track.out = updateNode(track.out);
@@ -128,11 +158,28 @@ export default function AENodeToolbar() {
 		setData(prev => {
 			const mainTrack = prev.main;
 			const targetTrack = prev[activeTrackId];
-			const yOffset = activeTrackId === 'sub' ? 10 : -10;
 			
 			const syncNode = (n: SpatialNode | null, mainN: SpatialNode | null): SpatialNode | null => {
 				if (!n || !mainN) return n;
-				return { ...n, x: mainN.x, y: Number(mainN.y) + yOffset, rot: mainN.rot, width: mainN.width, height: mainN.height, transition: mainN.transition };
+				
+				const gapPx = 0; // 边缘贴合间隙
+				const centerDistPx = (Number(mainN.height) / 2) + (Number(n.height) / 2) + gapPx;
+				const offsetPx = activeTrackId === 'sub' ? centerDistPx : -centerDistPx;
+				
+				const rad = Number(mainN.rot) * (Math.PI / 180);
+				const globalDxPx = -offsetPx * Math.sin(rad);
+				const globalDyPx = offsetPx * Math.cos(rad);
+				
+				const dxPercent = (globalDxPx / aeConfig.compWidth) * 100;
+				const dyPercent = (globalDyPx / aeConfig.compHeight) * 100;
+
+				return { 
+					...n, 
+					x: Number(mainN.x) + dxPercent, 
+					y: Number(mainN.y) + dyPercent, 
+					rot: mainN.rot, 
+					transition: mainN.transition 
+				};
 			};
 
 			return {

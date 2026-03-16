@@ -1,41 +1,64 @@
 // 文件路径：src/components/RibbonBar/AERibbonBar.tsx
 import { Button, Checkbox, Flex, Grid, Text } from '@radix-ui/themes';
-import { useAtom } from 'jotai';
+import { useAtom, useAtomValue } from 'jotai'; // 🌟 修改：引入 useAtomValue
 import { useCallback } from 'react';
 
 import { RibbonFrame, RibbonSection } from '$/components/RibbonBar/common';
 import { lockSubNodeDragAtom, spatialDataAtom, type SpatialNode } from '$/states/spatial';
+import { aeConfigAtom } from '$/states/aeConfig'; // 🌟 新增：引入画板配置
 
 export default function AERibbonBar() {
 	const [spatialData, setSpatialData] = useAtom(spatialDataAtom);
 	const [lockSubNodeDrag, setLockSubNodeDrag] = useAtom(lockSubNodeDragAtom);
+	const aeConfig = useAtomValue(aeConfigAtom); // 🌟 新增：读取画板配置
 
-	// 1. 全局一键吸附主歌词
+	// 1. 全局一键吸附主歌词 (带三角函数边缘贴合)
 	const globalAlignToMain = useCallback(() => {
 		setSpatialData(prev => {
 			const next = { ...prev };
-			const alignNode = (mainNode: SpatialNode | null, targetNode: SpatialNode | null, yOffset: number) => {
+			
+			// 传入 direction (1 代表向下，-1 代表向上)
+			const alignNode = (mainNode: SpatialNode | null, targetNode: SpatialNode | null, direction: 1 | -1) => {
 				if (!mainNode || !targetNode) return targetNode;
-				return { ...targetNode, x: mainNode.x, y: Number(mainNode.y) + yOffset, rot: mainNode.rot, width: mainNode.width, height: mainNode.height };
+				
+				const gapPx = 0;
+				const centerDistPx = (Number(mainNode.height) / 2) + (Number(targetNode.height) / 2) + gapPx;
+				const offsetPx = centerDistPx * direction;
+				
+				const rad = Number(mainNode.rot) * (Math.PI / 180);
+				const globalDxPx = -offsetPx * Math.sin(rad);
+				const globalDyPx = offsetPx * Math.cos(rad);
+				
+				const dxPercent = (globalDxPx / aeConfig.compWidth) * 100;
+				const dyPercent = (globalDyPx / aeConfig.compHeight) * 100;
+
+				return { 
+					...targetNode, 
+					x: Number(mainNode.x) + dxPercent, 
+					y: Number(mainNode.y) + dyPercent, 
+					rot: mainNode.rot 
+				};
 			};
-			const alignTrack = (trackId: 'sub' | 'ruby', yOffset: number) => {
+
+			const alignTrack = (trackId: 'sub' | 'ruby', direction: 1 | -1) => {
 				const track = { ...next[trackId] };
 				const main = next.main;
-				track.in = alignNode(main.in, track.in, yOffset);
-				track.focus = alignNode(main.focus, track.focus, yOffset);
-				track.out = alignNode(main.out, track.out, yOffset);
+				track.in = alignNode(main.in, track.in, direction);
+				track.focus = alignNode(main.focus, track.focus, direction);
+				track.out = alignNode(main.out, track.out, direction);
 				
-				// 🌟 修复 TS 报错：使用 as SpatialNode 断言，明确告诉 TS 这里的映射结果绝不为空
-				track.preFocus = track.preFocus.map((n, i) => alignNode(main.preFocus[i] || null, n, yOffset) as SpatialNode);
-				track.postFocus = track.postFocus.map((n, i) => alignNode(main.postFocus[i] || null, n, yOffset) as SpatialNode);
+				track.preFocus = track.preFocus.map((n, i) => alignNode(main.preFocus[i] || null, n, direction) as SpatialNode);
+				track.postFocus = track.postFocus.map((n, i) => alignNode(main.postFocus[i] || null, n, direction) as SpatialNode);
 				
 				next[trackId] = track;
 			};
-			alignTrack('sub', 10);
-			alignTrack('ruby', -10);
+
+			alignTrack('sub', 1); // 翻译轨道向下对其
+			alignTrack('ruby', -1); // 音译轨道向上对齐
+			
 			return next;
 		});
-	}, [setSpatialData]);
+	}, [setSpatialData, aeConfig.compWidth, aeConfig.compHeight]); // 🌟 将宽高加入依赖项，如果用户改了分辨率，吸附能自动响应
 
 	// 2. 磁性联动全局开关
 	const isGlobalBindPos = spatialData.sub.bindPos && spatialData.ruby.bindPos;
