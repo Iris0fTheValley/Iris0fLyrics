@@ -1,5 +1,5 @@
 // 文件路径：src/modules/ae-exporter/components/parts/AETemplateSelect.tsx
-import { Box, Button, Card, Flex, Grid, ScrollArea, Select, Switch, Text } from '@radix-ui/themes';
+import { AlertDialog, Box, Button, Card, Flex, Grid, ScrollArea, Select, Text } from '@radix-ui/themes';
 import { useAtom, useSetAtom, useStore } from 'jotai';
 import { type DragEvent, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -7,16 +7,16 @@ import { toast } from 'react-toastify';
 import { uid } from 'uid';
 
 import { aeConfigAtom } from '$/states/aeConfig';
-import { type AETemplate, aeTemplatesAtom, selectedAETemplateIdAtom, defaultAETemplate, performanceAETemplate, spatialNodeTemplate } from '$/states/aeTemplates';
+import { type AETemplate, aeTemplatesAtom, defaultAETemplate, performanceAETemplate, selectedAETemplateIdAtom, spatialNodeTemplate } from '$/states/aeTemplates';
 import { isGlobalFileDraggingAtom, lyricLinesAtom } from '$/states/main';
-import { spatialDataAtom } from '$/states/spatial'; 
+import { type RoleSpatialData, spatialDataAtom, spatialDataMapAtom } from '$/states/spatial'; 
 
 interface AETemplateSelectProps {
 	enableEffects: boolean;
 	setEnableEffects: (val: boolean) => void;
 }
 
-export default function AETemplateSelect({ enableEffects, setEnableEffects }: AETemplateSelectProps) {
+export default function AETemplateSelect({ enableEffects }: AETemplateSelectProps) {
 	const { t } = useTranslation();
 	const store = useStore();
 	const [templates, setTemplates] = useAtom(aeTemplatesAtom);
@@ -24,6 +24,12 @@ export default function AETemplateSelect({ enableEffects, setEnableEffects }: AE
 	const [config] = useAtom(aeConfigAtom);
 	const [isDragging, setIsDragging] = useState(false);
 	const setIsGlobalDragging = useSetAtom(isGlobalFileDraggingAtom);
+	
+	const setSpatialDataMap = useSetAtom(spatialDataMapAtom);
+
+	// 🌟 用于拦截下拉框选择的临时状态
+	const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(null);
+	const [isAlertOpen, setIsAlertOpen] = useState(false);
 
 	useEffect(() => {
 		setTemplates((prev) => {
@@ -33,6 +39,47 @@ export default function AETemplateSelect({ enableEffects, setEnableEffects }: AE
 	}, [setTemplates]);
 
 	const currentTemplate = templates.find((tpl) => tpl.id === selectedId) || templates[0];
+
+	// 🌟 核心拦截逻辑：当用户在下拉框里选中一个新模板时触发
+	const handleTemplateSelect = (newId: string) => {
+		const tpl = templates.find(t => t.id === newId);
+		// 检查这个模板肚子里有没有空间数据
+		if (tpl?.spatialMap && Object.keys(tpl.spatialMap).length > 0) {
+			// 有数据！把 ID 存起来，拦截切换动作，弹出警告
+			setPendingTemplateId(newId);
+			setIsAlertOpen(true);
+		} else {
+			// 没数据，或者就是个普通模板，直接老老实实切换即可，无事发生
+			setSelectedId(newId);
+		}
+	};
+
+	// 🌟 用户在警告弹窗点击【确定覆盖】
+	const confirmApply = () => {
+		if (pendingTemplateId) {
+			const tpl = templates.find(t => t.id === pendingTemplateId);
+			if (tpl?.spatialMap) {
+				// 1. 把空间数据覆盖进画板
+				setSpatialDataMap(tpl.spatialMap as Record<string, RoleSpatialData>);
+				toast.success(t('ae.applySpatialSuccess', '✨ 模板已启用，空间节点已映射到画板！'));
+			}
+			// 2. 真正把下拉框的值切换过去
+			setSelectedId(pendingTemplateId);
+		}
+		setPendingTemplateId(null);
+		setIsAlertOpen(false);
+	};
+
+	// 🌟 用户在警告弹窗点击【仅切换模板 (不覆盖)】
+	const cancelApply = () => {
+		if (pendingTemplateId) {
+			// 仅仅切换下拉框的值，绝不动画板里的数据
+			setSelectedId(pendingTemplateId);
+			toast.info('已启用该模板，但保留了你当前画板的节点数据。');
+		}
+		setPendingTemplateId(null);
+		setIsAlertOpen(false);
+	};
 
 	const handleGenerate = () => {
 		if (!currentTemplate) return;
@@ -138,7 +185,6 @@ export default function AETemplateSelect({ enableEffects, setEnableEffects }: AE
 	};
 
 	return (
-		// 🌟 核心修改：双列 Grid，极度节省高度空间
 		<Grid columns="1fr 1fr" gap="4" style={{ width: '100%' }}>
 			
 			<Card size="2" variant="surface">
@@ -148,12 +194,13 @@ export default function AETemplateSelect({ enableEffects, setEnableEffects }: AE
 						<Text size="2" color="gray">此按钮仅导出纯净的运动轨迹与排版，不包含任何下方生成的 AI 特效代码。</Text>
 					</Box>
 					<Flex direction="column" gap="3" justify="center" style={{ flex: 1 }}>
-						<Select.Root value={selectedId} onValueChange={setSelectedId}>
+						
+						{/* 🌟 修改点：拦截 onValueChange 到咱们写好的 handleTemplateSelect 逻辑上 */}
+						<Select.Root value={selectedId} onValueChange={handleTemplateSelect}>
 							<Select.Trigger style={{ width: '100%' }} />
 							<Select.Content>{templates.map((tpl) => (<Select.Item key={tpl.id} value={tpl.id}>{tpl.name}</Select.Item>))}</Select.Content>
 						</Select.Root>
 						
-						{/* 之前的特效开关已经移除，直接贴合导出按钮，极致纯净 */}
 						<Button size="3" color="jade" variant="solid" style={{ cursor: 'pointer', width: '100%', marginTop: 'auto' }} onClick={handleGenerate}>
 							⚡ 仅导出纯净节点 JSX
 						</Button>
@@ -188,6 +235,31 @@ export default function AETemplateSelect({ enableEffects, setEnableEffects }: AE
 					</ScrollArea>
 				</Flex>
 			</Card>
+
+			{/* 🌟 优雅的拦截警告弹窗 */}
+			<AlertDialog.Root open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+				<AlertDialog.Content maxWidth="450px">
+					<AlertDialog.Title>⚠️ 发现预设空间节点</AlertDialog.Title>
+					<AlertDialog.Description size="2">
+						你即将启用的模板带有专属的【空间节点排版数据】。
+						<br/><br/>
+						是否要用模板的数据<b>清空并覆盖</b>你当前空间画板上的所有节点内容？
+					</AlertDialog.Description>
+
+					<Flex gap="3" mt="4" justify="end">
+						<AlertDialog.Cancel>
+							<Button variant="soft" color="gray" style={{ cursor: 'pointer' }} onClick={cancelApply}>
+								仅切换模板 (不覆盖画板)
+							</Button>
+						</AlertDialog.Cancel>
+						<AlertDialog.Action>
+							<Button variant="solid" color="red" style={{ cursor: 'pointer' }} onClick={confirmApply}>
+								清空并覆盖画板
+							</Button>
+						</AlertDialog.Action>
+					</Flex>
+				</AlertDialog.Content>
+			</AlertDialog.Root>
 		</Grid>
 	);
 }
