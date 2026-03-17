@@ -368,9 +368,11 @@ export default function AENodeToolbar() {
 						{!isUsed && (
 							<Flex align="center" gap="2">
 								<Text size="1" color="gray">按住拖入或</Text>
-								<Button size="1" variant="soft" color="jade" style={{ cursor: 'pointer', zIndex: 10 }} onClick={(e) => { e.stopPropagation(); handleAddUniqueNode(id as 'in' | 'focus' | 'out'); }}>
-									+ 加入
-								</Button>
+								<Tooltip content="将此节点添加到当前轨道，开始编辑其位置和属性">
+									<Button size="1" variant="soft" color="jade" style={{ cursor: 'pointer', zIndex: 10 }} onClick={(e) => { e.stopPropagation(); handleAddUniqueNode(id as 'in' | 'focus' | 'out'); }}>
+										+ 加入
+									</Button>
+								</Tooltip>
 							</Flex>
 						)}
 
@@ -385,9 +387,11 @@ export default function AENodeToolbar() {
 							<Flex gap="3" align="center"><Text size="1" color="gray" style={{ width: 30 }}>角度</Text><Slider size="1" min={-180} max={180} step={1} value={[Number(nodeData.rot)||0]} onValueChange={([v]) => mutateNode(id, 'rot', v)} style={{ flex: 1 }} /><TextField.Root size="1" value={nodeData.rot} onChange={(e) => mutateNode(id, 'rot', e.target.value)} style={{ width: 50 }} /></Flex>
 							
 							{canAlign && (
-								<Button size="1" variant="soft" color="blue" onClick={() => alignToMainTrack(id)}>
-									🧲 吸附对齐主歌词
-								</Button>
+								<Tooltip content="将此节点的位置、尺寸和角度与主歌词轨道的对应节点对齐">
+									<Button size="1" variant="soft" color="blue" onClick={() => alignToMainTrack(id)}>
+										🧲 吸附对齐主歌词
+									</Button>
+								</Tooltip>
 							)}
 						</Flex>
 					)}
@@ -405,7 +409,9 @@ export default function AENodeToolbar() {
 					<Flex gap="2">
 						<Popover.Root>
 							<Popover.Trigger>
-								<Button size="1" variant="soft" color="violet" style={{ cursor: 'pointer' }}>🪄 轨迹魔法</Button>
+								<Tooltip content="克隆其他角色的轨迹数据，并进行镜像、旋转等矩阵变换">
+									<Button size="1" variant="soft" color="violet" style={{ cursor: 'pointer' }}>🪄 轨迹魔法</Button>
+								</Tooltip>
 							</Popover.Trigger>
 							<Popover.Content width="260px">
 								<Flex direction="column" gap="3">
@@ -427,20 +433,28 @@ export default function AENodeToolbar() {
 									</Flex>
 
 									<Flex direction="column" gap="2" mt="1">
-										<Button size="1" variant="soft" color="blue" style={{ cursor: 'pointer' }} onClick={() => applyMagic('clone')}>
-											📄 1:1 绝对克隆 (Copy)
-										</Button>
-										<Button size="1" variant="soft" color="orange" style={{ cursor: 'pointer' }} onClick={() => applyMagic('mirrorX')}>
-											↔️ 左右对称镜像 (Flip X)
-										</Button>
-										<Button size="1" variant="soft" color="green" style={{ cursor: 'pointer' }} onClick={() => applyMagic('mirrorY')}>
-											↕️ 上下对称镜像 (Flip Y)
-										</Button>
+										<Tooltip content="精确复制选定角色的所有轨迹节点，覆盖当前画板">
+											<Button size="1" variant="soft" color="blue" style={{ cursor: 'pointer' }} onClick={() => applyMagic('clone')}>
+												📄 1:1 绝对克隆 (Copy)
+											</Button>
+										</Tooltip>
+										<Tooltip content="将选定角色的轨迹水平镜像（左右翻转）后应用到当前画板">
+											<Button size="1" variant="soft" color="orange" style={{ cursor: 'pointer' }} onClick={() => applyMagic('mirrorX')}>
+												↔️ 左右对称镜像 (Flip X)
+											</Button>
+										</Tooltip>
+										<Tooltip content="将选定角色的轨迹垂直镜像（上下翻转）后应用到当前画板">
+											<Button size="1" variant="soft" color="green" style={{ cursor: 'pointer' }} onClick={() => applyMagic('mirrorY')}>
+												↕️ 上下对称镜像 (Flip Y)
+											</Button>
+										</Tooltip>
 										
 										<Flex align="center" gap="2" mt="1">
-											<Button size="1" variant="soft" color="violet" style={{ flex: 1, cursor: 'pointer' }} onClick={() => applyMagic('rotate')}>
-												🔄 中心环绕旋转
-											</Button>
+											<Tooltip content="将选定角色的轨迹绕中心点旋转指定角度后应用到当前画板">
+												<Button size="1" variant="soft" color="violet" style={{ flex: 1, cursor: 'pointer' }} onClick={() => applyMagic('rotate')}>
+													🔄 中心环绕旋转
+												</Button>
+											</Tooltip>
 											<TextField.Root size="1" type="number" style={{ width: '60px' }} value={globalRot} onChange={e => setGlobalRot(Number(e.target.value) || 0)} />
 											<Text size="1" color="gray">度</Text>
 										</Flex>
@@ -451,7 +465,9 @@ export default function AENodeToolbar() {
 
 						<Popover.Root>
 							<Popover.Trigger>
-								<Button size="1" variant="soft" color="indigo" style={{ cursor: 'pointer' }}>⚙️ 联动锁</Button>
+								<Tooltip content="设置子轨道是否跟随主轨道移动、旋转，以及锁定子轨道拖拽">
+									<Button size="1" variant="soft" color="indigo" style={{ cursor: 'pointer' }}>⚙️ 联动锁</Button>
+								</Tooltip>
 							</Popover.Trigger>
 							<Popover.Content width="260px">
 								<Flex direction="column" gap="3">
@@ -483,9 +499,13 @@ export default function AENodeToolbar() {
 						</Popover.Root>
 
 						{activeTrackId !== 'main' && (
-							<Button size="1" variant="soft" color="blue" style={{ cursor: 'pointer' }} onClick={syncAllFromMain}>🧲 全局吸附</Button>
+							<Tooltip content="将本轨道所有节点的位置与主歌词轨道对应节点对齐">
+								<Button size="1" variant="soft" color="blue" style={{ cursor: 'pointer' }} onClick={syncAllFromMain}>🧲 全局吸附</Button>
+							</Tooltip>
 						)}
-						<Button size="1" variant="soft" color="gray" style={{ cursor: 'pointer' }} onClick={resetCurrentTrack}>🔄 重置</Button>
+						<Tooltip content="清空当前轨道所有节点，恢复为默认初始状态">
+							<Button size="1" variant="soft" color="gray" style={{ cursor: 'pointer' }} onClick={resetCurrentTrack}>🔄 重置</Button>
+						</Tooltip>
 					</Flex>
 				</Flex>
 
@@ -507,7 +527,9 @@ export default function AENodeToolbar() {
 								<Text color="gray" style={{ cursor: 'help', fontWeight: 'bold' }}>ⓘ</Text>
 							</Tooltip>
 						</Flex>
-						<Button size="1" variant="soft" color="gray" style={{ cursor: 'pointer' }} onClick={() => clickToAdd('preFocus')}>+ 增加</Button>
+						<Tooltip content="在焦点之前添加一个过渡节点，用于入场到焦点的动画">
+							<Button size="1" variant="soft" color="gray" style={{ cursor: 'pointer' }} onClick={() => clickToAdd('preFocus')}>+ 增加</Button>
+						</Tooltip>
 					</Flex>
 					<Flex direction="column" gap="2">
 						<div draggable onDragStart={(e) => handleDragStart(e, 'preFocus')} style={{ width:'100%', padding: '8px', border: '1px dashed var(--gray-7)', borderRadius: '6px', textAlign: 'center', cursor: 'grab', display: currentTrack.preFocus.length === 0 ? 'block' : 'none' }}>
@@ -527,7 +549,9 @@ export default function AENodeToolbar() {
 								<Text color="gray" style={{ cursor: 'help', fontWeight: 'bold' }}>ⓘ</Text>
 							</Tooltip>
 						</Flex>
-						<Button size="1" variant="soft" color="gray" style={{ cursor: 'pointer' }} onClick={() => clickToAdd('postFocus')}>+ 增加</Button>
+						<Tooltip content="在焦点之后添加一个过渡节点，用于焦点到离场的动画">
+							<Button size="1" variant="soft" color="gray" style={{ cursor: 'pointer' }} onClick={() => clickToAdd('postFocus')}>+ 增加</Button>
+						</Tooltip>
 					</Flex>
 					<Flex direction="column" gap="2">
 						<div draggable onDragStart={(e) => handleDragStart(e, 'postFocus')} style={{ width:'100%', padding: '8px', border: '1px dashed var(--gray-7)', borderRadius: '6px', textAlign: 'center', cursor: 'grab', display: currentTrack.postFocus.length === 0 ? 'block' : 'none' }}>

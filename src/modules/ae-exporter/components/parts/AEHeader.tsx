@@ -4,10 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 
 // 这里存放原本在 AEModePanel 里的巨长文本
-const HUMAN_GUIDE_TEXT = `📄 文档一：AMLL AE 特效模板开发指南...（请替换为完整文本）`;
+// const HUMAN_GUIDE_TEXT = `📄 文档一：AMLL AE 特效模板开发指南...（请替换为完整文本）`; // 已国际化
 
 export default function AEHeader() {
 	const { t } = useTranslation();
+	const humanGuideText = t('ae.humanGuideText');
 
 	const handleCopy = (text: string, title: string) => {
 		navigator.clipboard.writeText(text)
@@ -24,11 +25,11 @@ export default function AEHeader() {
 					<Dialog.Content style={{ maxWidth: 800 }}>
 						<Dialog.Title>{t('ae.humanGuideTitle', 'AMLL AE 特效模板开发指南')}</Dialog.Title>
 						<ScrollArea style={{ height: '60vh', marginTop: '10px', marginBottom: '20px', backgroundColor: 'var(--gray-2)', padding: '15px', borderRadius: '8px' }}>
-							<pre style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word', fontFamily: 'inherit', margin: 0, fontSize: '13px' }}>{HUMAN_GUIDE_TEXT}</pre>
+							<pre style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word', fontFamily: 'inherit', margin: 0, fontSize: '13px' }}>{humanGuideText}</pre>
 						</ScrollArea>
 						<Flex justify="end" gap="3">
 							<Dialog.Close><Button variant="soft" color="gray" style={{ cursor: 'pointer' }}>{t('ae.close', '关闭')}</Button></Dialog.Close>
-							<Button color="jade" onClick={() => handleCopy(HUMAN_GUIDE_TEXT, t('ae.humanGuideBtn', '开发者指南'))} style={{ cursor: 'pointer' }}>📋 {t('ae.copyBtn', '一键复制')}</Button>
+							<Button color="jade" onClick={() => handleCopy(humanGuideText, t('ae.humanGuideBtn', '开发者指南'))} style={{ cursor: 'pointer' }}>📋 {t('ae.copyBtn', '一键复制')}</Button>
 						</Flex>
 					</Dialog.Content>
 				</Dialog.Root>
