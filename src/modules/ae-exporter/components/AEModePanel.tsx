@@ -2,7 +2,6 @@
 import { Box, Flex, Separator, Text } from '@radix-ui/themes';
 import { useSetAtom } from 'jotai';
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 
 import { isGlobalFileDraggingAtom } from '$/states/main';
 
@@ -20,7 +19,6 @@ const customStyles = `
 
 export default function AEModePanel() {
 	const setIsGlobalDragging = useSetAtom(isGlobalFileDraggingAtom);
-	const { t } = useTranslation();
 	const [enableEffects, setEnableEffects] = useState(true);
 	const [userDescription, setUserDescription] = useState('');
 
@@ -54,7 +52,7 @@ export default function AEModePanel() {
 					
 					{/* 左：核心动效参数 (内部独立滚动) */}
 					<Box style={{ width: '280px', backgroundColor: 'var(--gray-2)', borderRadius: '8px', border: '1px solid var(--gray-6)', padding: '16px', overflowY: 'auto' }} className="custom-scrollbar">
-						<Text weight="bold" size="3" mb="4" style={{display: 'block'}}>{t('ae.modePanel.coreEffectsParams')}</Text>
+						<Text weight="bold" size="3" mb="4" style={{display: 'block'}}>🎛️ 核心动效参数</Text>
 						<AELeftPanel />
 					</Box>
 
@@ -73,8 +71,8 @@ export default function AEModePanel() {
 				{/* 🚀 高亮横幅分割线，制造明显的视觉断层 */}
 				<Flex direction="column" align="center" style={{ width: '100%', maxWidth: '1800px', marginBottom: '30px' }}>
 					<Separator size="4" style={{ width: '100%', height: '3px', backgroundColor: 'var(--indigo-5)', marginBottom: '20px' }} />
-					<Text weight="bold" size="6" color="indigo" style={{ display: 'block', letterSpacing: '1px' }}>{t('ae.modePanel.advancedModeTitle')}</Text>
-					<Text size="3" color="gray" mt="2">{t('ae.modePanel.advancedModeDescription')}</Text>
+					<Text weight="bold" size="6" color="indigo" style={{ display: 'block', letterSpacing: '1px' }}>🤖 进阶模式：AI 特效组装与导出台</Text>
+					<Text size="3" color="gray" mt="2">在此处，你可以将上面画板里的“运动轨迹”与 AI 写的“特效脚本”强强联手，打包成终极 JSX 文件。</Text>
 				</Flex>
 
 				{/* 🚀 【下】AI 提示词生成工作台 */}
