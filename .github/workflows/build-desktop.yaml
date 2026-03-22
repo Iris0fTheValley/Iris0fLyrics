@@ -1,6 +1,5 @@
 name: 构建 Tauri 桌面版本
 on:
-  - push
   - workflow_dispatch
 
 permissions:

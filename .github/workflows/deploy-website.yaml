@@ -1,0 +1,51 @@
+name: 部署网站到 GitHub Pages
+
+on:
+  push:
+    branches: ["main"]  # 当推送到 main 分支时触发
+  workflow_dispatch:    # 允许手动触发
+
+# 设置 GITHUB_TOKEN 的权限，以便部署到 pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 允许一个并发部署
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: 克隆仓库
+        uses: actions/checkout@v6
+
+      - name: 安装 PNPM
+        uses: pnpm/action-setup@v4
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - name: 安装前端依赖
+        run: pnpm install
+
+      - name: 构建网站
+        run: pnpm build
+
+      - name: 上传构建产物
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+      - name: 部署到 GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
