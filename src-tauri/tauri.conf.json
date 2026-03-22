@@ -45,9 +45,9 @@
 	},
 	"plugins": {
 		"updater": {
-			"pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZCMTA0MTJFNjg1NTIyMTcKUldRWElsVm9Ma0VRKzRRUW05VlkvWXlVQTAxQ2VzTitZNlJvNkFiNzhoRW9jQTBEVEhUeVhqMFMK",
+			"pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEVBMjNBQTdFODdFQjQxNjkKUldScFFldUhmcW9qNm5TaW5CN3o1UVJYT0VMRjFlRHpLTGlkdVJCRjVJWFp0VlhNL254NEg5ZnIK",
 			"endpoints": [
-				"https://github.com/amll-dev/amll-ttml-tool/releases/latest/download/latest.json"
+				"https://github.com/Iris0fTheValley/Iris0fLyrics/releases/latest/download/latest.json"
 			]
 		}
 	}
