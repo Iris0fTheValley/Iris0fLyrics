@@ -45,7 +45,7 @@
 	},
 	"plugins": {
 		"updater": {
-			"pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEVBMjNBQTdFODdFQjQxNjkKUldScFFldUhmcW9qNm5TaW5CN3o1UVJYT0VMRjFlRHpLTGlkdVJCRjVJWFp0VlhNL254NEg5ZnIK",
+			"pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRDM0EyNEZGQTkwMDk5NDYKUldSR21RQ3AveVE2VENUaHFESjEzZWl2SHp3YWxaVVFqdjh2UGFnSjdFc0dla05IWXJGVCtHRWYK",
 			"endpoints": [
 				"https://github.com/Iris0fTheValley/Iris0fLyrics/releases/latest/download/latest.json"
 			]
