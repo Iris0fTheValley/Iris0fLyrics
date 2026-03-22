@@ -50,25 +50,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "amll-ttml-tool"
-version = "0.1.0"
-dependencies = [
- "log",
- "serde",
- "serde_json",
- "tao",
- "tauri",
- "tauri-build",
- "tauri-plugin-decorum",
- "tauri-plugin-log",
- "tauri-plugin-os",
- "tauri-plugin-process",
- "tauri-plugin-shell",
- "tauri-plugin-updater",
- "window-vibrancy 0.7.1",
-]
-
-[[package]]
 name = "android_log-sys"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1797,6 +1778,25 @@ checksum = "c91338f0783edbd6195decb37bae672fd3b165faffb89bf7b9e6942f8b1a731a"
 dependencies = [
  "memchr",
  "serde",
+]
+
+[[package]]
+name = "iris0flyrics"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "serde",
+ "serde_json",
+ "tao",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-decorum",
+ "tauri-plugin-log",
+ "tauri-plugin-os",
+ "tauri-plugin-process",
+ "tauri-plugin-shell",
+ "tauri-plugin-updater",
+ "window-vibrancy 0.7.1",
 ]
 
 [[package]]

@@ -1,15 +1,13 @@
 [package]
-name = "amll-ttml-tool"
+name = "iris0flyrics"
 version = "0.1.0"
-description = "A brand-new syllable lyric editor for Apple Music-like lyrics"
+description = "A All-in-one TTML lyrics editor "
 license = "GPL-3.0"
-repository = "https://github.com/amll-dev/amll-ttml-tool"
+repository = "https://github.com/Iris0fTheValley/Iris0fLyrics"
 edition = "2024"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [lib]
-name = "amll_ttml_tool_lib"
+name = "iris0flyrics_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

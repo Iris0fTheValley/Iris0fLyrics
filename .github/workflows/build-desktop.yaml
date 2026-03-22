@@ -20,6 +20,7 @@ jobs:
           tag: ${{ github.ref_name }}-release
           fail-if-no-assets: false
           fail-if-no-release: false
+
   build-tauri-desktop:
     name: 构建 Tauri 桌面版本
     needs: clean-pre-release
@@ -35,15 +36,15 @@ jobs:
             args: ""
             name: windows
             arch: x86_64
-          - platform: macos-latest # arm64 二进制包
+          - platform: macos-latest
             args: "--target aarch64-apple-darwin"
             name: macOS
             arch: aarch64
-          - platform: macos-latest # x86 二进制包
+          - platform: macos-latest
             args: "--target x86_64-apple-darwin"
             name: macOS
             arch: x86_64
-          - platform: macos-latest # 通用二进制包
+          - platform: macos-latest
             args: "--target universal-apple-darwin"
             name: macOS
             arch: universal
@@ -55,10 +56,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 缓存 Rust 依赖
+      - name: 缓存 Rust 依赖（跨分支共享）
         uses: Swatinem/rust-cache@v2
         with:
+          shared-key: "tauri-build"
           workspaces: ./src-tauri -> target
+          cache-all-crates: true
 
       - name: 安装 PNPM
         uses: pnpm/action-setup@v4
@@ -77,7 +80,6 @@ jobs:
       - name: 安装 wasm32 目标
         run: rustup target add wasm32-unknown-unknown
 
-      # macOS 自带的 Xcode LLVM 不支持 WASM 目标
       - name: "macOS: 安装 LLVM 和 Clang"
         uses: KyleMayes/install-llvm-action@v2
         if: matrix.platform == 'macos-latest'
@@ -96,12 +98,12 @@ jobs:
       - name: 更新版本号
         run: node scripts/update-version.ts
 
-      - name: 构建 AMLL TTML Tools 程序并发布自动构建
+      - name: 构建 Iris0fLyrics 程序并发布自动构建
         uses: tauri-apps/tauri-action@v0
         with:
           tagName: ${{ github.ref_name }}-release
           includeUpdaterJson: true
-          releaseName: AMLL TTML Tools ${{ github.ref_name }} branch build
+          releaseName: Iris0fLyrics ${{ github.ref_name }} branch build
           releaseBody: |
             Latest ${{ github.ref_name }} branch development build.
             最新 ${{ github.ref_name }} 分支构建。
@@ -114,8 +116,8 @@ jobs:
       - name: 上传产物到 Action Artifact
         uses: actions/upload-artifact@v6
         with:
-          name: AMLL TTML Tools ${{matrix.name}}-${{matrix.arch}}
+          name: Iris0fLyrics ${{matrix.name}}-${{matrix.arch}}
           path: |
             src-tauri/target/**/release/bundle/**/*
-            src-tauri/target/**/release/amll-ttml-tool.exe
-            src-tauri/target/**/release/amll-ttml-tool
+            src-tauri/target/**/release/iris0flyrics.exe
+            src-tauri/target/**/release/iris0flyrics
