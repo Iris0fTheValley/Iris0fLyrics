@@ -9,7 +9,7 @@ Iris0fLyrics —— 一站式逐字特效字幕制作工具
 
 感谢原项目团队，本项目基于 amll-ttml-tool 扩展而来。
 
-你可以通过访问https://iris0fthevalley.github.io/Iris0fLyrics/来使用本工具的在线版本。
+你可以通过访问https://iris0fthevalley.github.io/Iris0fLyrics/ 来使用本工具的在线版本。
 
 ------------
 ## 核心目标与理念
